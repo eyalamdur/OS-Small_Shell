@@ -6,6 +6,7 @@
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 #define CD_COMMAND_ARGS_NUM (2)
+#define DEFAULT_JOB_ID (1)
 
 using namespace std;
 
@@ -121,7 +122,23 @@ class QuitCommand : public BuiltInCommand {
 class JobsList {
 public:
     class JobEntry {
-        // TODO: Add your data members
+    protected:
+        int m_jobID;
+        Command* m_command;
+        bool m_isStopped;
+    
+    public:
+        JobEntry(int id, Command* cmd, bool stopped);
+
+        /* Setters & Getters */
+        void setJobID(int id);
+        void setCommand(Command* cmd);
+        void setStopped(bool stopped);
+        int getJobID() const;
+        Command* getCommand() const;
+        bool isStopped() const;
+
+
     };
     // TODO: Add your data members
 public:
@@ -145,10 +162,16 @@ public:
 
     JobEntry *getLastStoppedJob(int *jobId);
     // TODO: Add extra methods or modify exisitng ones as needed
+
+protected:
+    vector<JobEntry>* m_jobEntries;
+    int m_nextJobID;
 };
 
 class JobsCommand : public BuiltInCommand {
-    // TODO: Add your data members
+protected:
+    JobsList* m_jobsList;
+
 public:
     JobsCommand(const char *cmd_line, JobsList *jobs);
 
@@ -218,6 +241,7 @@ private:
     // TODO: Add your data members
     SmallShell();
     char* m_plastPwd;
+    JobsList* m_jobList;
 
 public:
     Command *CreateCommand(const char *cmd_line);
@@ -230,7 +254,6 @@ public:
         // Instantiated on first use.
         return instance;
     }
-
     ~SmallShell();
     
 
@@ -238,6 +261,7 @@ public:
     void printToTerminal(string line);
 
     char** getPlastPwdPtr();
+    JobsList* getJobsList();
 };
 
 #endif //SMASH_COMMAND_H_

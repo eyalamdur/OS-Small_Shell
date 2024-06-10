@@ -2,6 +2,7 @@
 #include <libgen.h>
 #include <string.h>
 #include <iostream>
+#include <algorithm>
 #include <vector>
 #include <sstream>
 #include <sys/wait.h>
@@ -77,12 +78,12 @@ void _removeBackgroundSign(char *cmd_line) {
 /*----------------------------------------- SmallShell Class ----------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
 
-SmallShell::SmallShell() {
+SmallShell::SmallShell() : m_plastPwd(nullptr), m_jobList(new JobsList()){
 // TODO: add your implementation
 }
 
 SmallShell::~SmallShell() {
-// TODO: add your implementation
+    delete m_jobList;
 }
 
 /**
@@ -96,6 +97,8 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new GetCurrDirCommand(cmd_line);
     else if (firstWord.compare("cd") == 0) 
         return new ChangeDirCommand(cmd_line, getPlastPwdPtr());
+    else if (firstWord.compare("jobs") == 0) 
+        return new JobsCommand(cmd_line, getJobsList());
   
   /*
   else if (firstWord.compare("showpid") == 0) {
@@ -124,6 +127,10 @@ void SmallShell::executeCommand(const char *cmd_line) {
 /* Gets pointer to the last path of working directory */
 char** SmallShell::getPlastPwdPtr() {
     return &m_plastPwd;
+}
+
+JobsList* SmallShell::getJobsList(){
+    return m_jobList;
 }
 
 /* Prints give line to terminal */
@@ -217,6 +224,74 @@ void ChangeDirCommand::execute() {
     }
 
     // Change directory using chdir
-    *plastPwd = getcwd(NULL, 0);
-    chdir(newDir);
+    if (newDir != nullptr){
+        *plastPwd = getcwd(NULL, 0);
+        chdir(newDir);
+    }
+}
+
+
+/*---------------------------------------------------------------------------------------------------*/
+/*------------------------------------------ Jobs Commands ------------------------------------------*/
+/*---------------------------------------------------------------------------------------------------*/
+
+/* C'tor for JobEntry & Setters/Getters */
+JobsList::JobEntry::JobEntry(int id, Command* cmd, bool stopped) : m_jobID(id), m_command(cmd), m_isStopped(stopped) {}
+
+void JobsList::JobEntry::setJobID(int id){
+    m_jobID = id;
+}
+
+void JobsList::JobEntry::setCommand(Command* cmd){
+    m_command = cmd;
+}
+
+void JobsList::JobEntry::setStopped(bool stopped){
+    m_isStopped = stopped;
+}
+
+int JobsList::JobEntry::getJobID() const{
+    return m_jobID;
+}
+
+Command* JobsList::JobEntry::getCommand() const{
+    return m_command;
+}
+
+bool JobsList::JobEntry::isStopped() const{
+    return m_isStopped;
+}
+
+
+/* C'tor & D'tor for JobList*/
+JobsList::JobsList() : m_jobEntries(new vector<JobEntry>()), m_nextJobID(DEFAULT_JOB_ID){}
+JobsList::~JobsList(){
+    delete m_jobEntries;
+}
+
+/* Method for adding job for job list */
+void JobsList::addJob(Command* command, bool isStopped) {
+    m_jobEntries->emplace_back(m_nextJobID++, command, isStopped);
+}
+
+/* Method for printint job list to terminal */
+ void JobsList::printJobsList() {
+        // Sort the job entries based on job ID
+        sort(m_jobEntries->begin(), m_jobEntries->end(), [](const JobEntry& a, const JobEntry& b) {
+            return a.getJobID() < b.getJobID();
+        });
+
+        // Print the jobs list in the required format
+        for (const auto& job : *m_jobEntries) {
+            if (!job.isStopped()) {
+                std::cout << "[" << job.getJobID() << "] " << job.getCommand()->getArgs()[0] << std::endl;
+            }
+        }
+    }
+
+JobsCommand::JobsCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), m_jobsList(jobs) {}
+
+void JobsCommand::execute() {
+    //m_jobsList->addJob(new GetCurrDirCommand("pwd"));   // SelfTest
+    m_jobsList->printJobsList();
 }

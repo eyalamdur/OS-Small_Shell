@@ -5,6 +5,7 @@
 
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
+#define CD_COMMAND_ARGS_NUM (2)
 
 using namespace std;
 
@@ -17,10 +18,8 @@ public:
 
     virtual void execute() = 0;
 
-    // Method to get the number of arguments
+    /* Args Methods */
     int getArgCount() const;
-
-    // Get the command arguments as a vector
     vector<std::string> getArgs() const;
 
     //virtual void prepare();
@@ -78,15 +77,15 @@ public:
 };
 
 class ChangeDirCommand : public BuiltInCommand {
-// TODO: Add your data members public:
+public:
     ChangeDirCommand(const char *cmd_line, char **plastPwd);
 
     virtual ~ChangeDirCommand() {}
 
     void execute() override;
 
-    protected:
-        char **plastPwd; // Pointer to the previous working directory
+protected:
+    char **plastPwd; // Pointer to the previous working directory
 };
 
 class GetCurrDirCommand : public BuiltInCommand {
@@ -233,8 +232,11 @@ public:
     }
 
     ~SmallShell();
+    
 
     void executeCommand(const char *cmd_line);
+    void printToTerminal(string line);
+
     char** getPlastPwdPtr();
 };
 

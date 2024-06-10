@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <libgen.h>
 #include <string.h>
 #include <iostream>
 #include <vector>
@@ -88,17 +89,13 @@ SmallShell::~SmallShell() {
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
 Command *SmallShell::CreateCommand(const char *cmd_line) {
-    // For example:
-  string cmd_s = _trim(string(cmd_line));
-  string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
-  
-  //Print to self to see the command      #TODO - Delete
-  cout << firstWord << endl;
+    string cmd_s = _trim(string(cmd_line));
+    string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
   
     if (firstWord.compare("pwd") == 0) 
         return new GetCurrDirCommand(cmd_line);
-    //else if (firstWord.compare("cd") == 0) 
-    //    return new ChangeDirCommand(cmd_line, this->getPlastPwdPtr());
+    else if (firstWord.compare("cd") == 0) 
+        return new ChangeDirCommand(cmd_line, getPlastPwdPtr());
   
   /*
   else if (firstWord.compare("showpid") == 0) {
@@ -115,12 +112,23 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 
 void SmallShell::executeCommand(const char *cmd_line) {
     Command* cmd = CreateCommand(cmd_line);
-    cmd->execute();
+
+    if (cmd != nullptr)
+        cmd->execute();
+    else
+        printToTerminal("Unknown Command");
+
     // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
 
+/* Gets pointer to the last path of working directory */
 char** SmallShell::getPlastPwdPtr() {
     return &m_plastPwd;
+}
+
+/* Prints give line to terminal */
+void SmallShell::printToTerminal(string line){
+    cout << line << endl;
 }
 
 /*---------------------------------------------------------------------------------------------------*/
@@ -132,11 +140,10 @@ Command::Command(const char *cmd_line) : m_cmd_string(cmd_line){}
 // Virtual destructor implementation
 Command::~Command() {} 
 
-/* Implementation to count the number of arguments, assuming arguments are space-separated */
+/* Method to count the number of arguments, assuming arguments are space-separated */
 int Command::getArgCount() const {
     int count = 0;
     const char* cmd = m_cmd_string; // m_cmd_string holds the command string
-
     while (*cmd != '\0') {
         if (*cmd != ' ') {
             count++;
@@ -151,6 +158,7 @@ int Command::getArgCount() const {
     return count;
 }
 
+/* Method to get the command arguments as a vector */
 vector<string> Command::getArgs() const {
     vector<string> arguments;
     string cmdLine(m_cmd_string); //  m_cmd_string holds the command line
@@ -182,37 +190,33 @@ void GetCurrDirCommand::execute() {
 
 
 /* Constructor implementation for ChangeDirCommand */
-ChangeDirCommand::ChangeDirCommand(const char *cmd_line, char **plastPwd) : BuiltInCommand(cmd_line) {}
+ChangeDirCommand::ChangeDirCommand(const char *cmd_line, char **plastPwd) : BuiltInCommand(cmd_line), plastPwd(plastPwd) {}
 
 /* Execute method to change the current working directory. */
 void ChangeDirCommand::execute() {
     char *newDir = nullptr;
 
-    // No arguments - go back to the previous directory
-    if (getArgCount() == 1) {
-        if (*plastPwd != nullptr)
-            newDir = *plastPwd;
-        else {
-            cerr << "cd: OLDPWD not set" << endl;
-            return;
+    // 1 argument - go to the given directory
+    if (getArgCount() == CD_COMMAND_ARGS_NUM){
+        if (getArgs()[1] == "-"){
+            if (*plastPwd != nullptr)
+                newDir = *plastPwd;
+            else
+                cerr << "smash error: cd: OLDPWD not set" << endl;
         }
+        else if (getArgs()[1] == "..")
+            newDir = dirname(getcwd(NULL, 0));
+        else
+            newDir = strdup(getArgs()[1].c_str());
     }
 
-    // 1 argument - go to the given directory
-    else if (getArgCount() == 2)
-        newDir = strdup(getArgs()[1].c_str());
-    else {
-        cerr << "cd: too many arguments" << endl;
+    // 2 args or more
+    else if (getArgCount() > CD_COMMAND_ARGS_NUM){
+        cerr << "smash error: cd: too many arguments" << endl;
         return;
     }
 
     // Change directory using chdir
-    if (chdir(newDir) == 0) {
-        if (*plastPwd != nullptr) {
-            free(*plastPwd);
-        }
-        *plastPwd = getcwd(NULL, 0);
-    } else {
-        cerr << "Error changing directory to " << newDir << endl;
-    }
+    *plastPwd = getcwd(NULL, 0);
+    chdir(newDir);
 }

@@ -77,6 +77,7 @@ void _removeBackgroundSign(char *cmd_line) {
 /*---------------------------------------------------------------------------------------------------*/
 
 std::string SmallShell::m_prompt = "smash";
+bool SmallShell::m_proceed = true;
 
 SmallShell::SmallShell() {
 // TODO: add your implementation
@@ -93,7 +94,7 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     // For example:
   string cmd_s = _trim(string(cmd_line));
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
-  
+
   //Print to self to see the command      #TODO - Delete
   cout << firstWord << endl;
   
@@ -105,9 +106,13 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     if (firstWord.compare("chprompt") == 0)
         return new ChangePromptCommand(cmd_line);
 
-  if (firstWord.compare("showpid") == 0) {
-    return new ShowPidCommand(cmd_line);
-  }
+   if (firstWord.compare("showpid") == 0) {
+     return new ShowPidCommand(cmd_line);
+   }
+
+    if (firstWord.compare("quit") == 0) {
+        return new QuitCommand(cmd_line, nullptr);
+    }
     /*
     else if ...
     .....
@@ -189,8 +194,6 @@ void ChangePromptCommand::execute() {
    }
    SmallShell::setPrompt(str);
 }
-<<<<<<< HEAD
-=======
 
 /* C'tor for ShowPidCommand Class*/
 ShowPidCommand::ShowPidCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
@@ -199,7 +202,16 @@ void ShowPidCommand::execute() {
     pid_t pid = getpid();
     std::cout << "smash pid is " << pid << endl;
 }
->>>>>>> showpid
+
+/* C'tor for quit command*/
+QuitCommand::QuitCommand(const char *cmd_line, JobsList *jobs = nullptr) : BuiltInCommand(cmd_line) {}
+
+void QuitCommand::execute() {
+    if (getArgCount() > 1 && getArgs()[1].compare("kill") == 0){
+        // handle killing jobs
+    }
+    SmallShell::quit();
+}
 
 /* Constructor implementation for GetCurrDirCommand */
 GetCurrDirCommand::GetCurrDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}

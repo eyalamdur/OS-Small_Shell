@@ -111,6 +111,7 @@ class JobsList;
 
 class QuitCommand : public BuiltInCommand {
 // TODO: Add your data members public:
+public:
     QuitCommand(const char *cmd_line, JobsList *jobs);
 
     virtual ~QuitCommand() {}
@@ -230,6 +231,9 @@ private:
     char* m_plastPwd;
 
 public:
+    static bool m_proceed;
+    bool toProceed () {return m_proceed;}
+    static void quit () {m_proceed = false;}
     static std::string m_prompt;
     static void setPrompt(std::string& str) { m_prompt = str;}
     std::string getPrompt() {return m_prompt; }

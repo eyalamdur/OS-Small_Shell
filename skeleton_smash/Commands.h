@@ -214,6 +214,15 @@ public:
     void execute() override;
 };
 
+class ChangePromptCommand : public BuiltInCommand {
+public:
+    ChangePromptCommand(const char *cmd_line);
+
+    virtual ~ChangePromptCommand();
+
+    void execute() override;
+};
+
 class SmallShell {
 private:
     // TODO: Add your data members
@@ -221,6 +230,9 @@ private:
     char* m_plastPwd;
 
 public:
+    static std::string m_prompt;
+    static void setPrompt(std::string& str) { m_prompt = str;}
+    std::string getPrompt() {return m_prompt; }
     Command *CreateCommand(const char *cmd_line);
 
     SmallShell(SmallShell const &) = delete; // disable copy ctor

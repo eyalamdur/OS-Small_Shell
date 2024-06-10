@@ -76,6 +76,8 @@ void _removeBackgroundSign(char *cmd_line) {
 /*----------------------------------------- SmallShell Class ----------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
 
+std::string SmallShell::m_prompt = "smash";
+
 SmallShell::SmallShell() {
 // TODO: add your implementation
 }
@@ -99,7 +101,9 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new GetCurrDirCommand(cmd_line);
     //else if (firstWord.compare("cd") == 0) 
     //    return new ChangeDirCommand(cmd_line, this->getPlastPwdPtr());
-  
+
+    if (firstWord.compare("chprompt") == 0)
+        return new ChangePromptCommand(cmd_line);
   /*
   else if (firstWord.compare("showpid") == 0) {
     return new ShowPidCommand(cmd_line);
@@ -169,6 +173,21 @@ vector<string> Command::getArgs() const {
 /* C'tor for BuiltInCommand Class*/
 BuiltInCommand::BuiltInCommand(const char *cmd_line) : Command(cmd_line){}
 
+/* C'tor for changePromptCommand*/
+ChangePromptCommand::ChangePromptCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
+
+ChangePromptCommand::~ChangePromptCommand() = default;
+
+void ChangePromptCommand::execute() {
+   std::string str;
+   if (getArgCount() == 1){
+        str = "smash";
+   }
+   else{
+       str = getArgs()[1];
+   }
+   SmallShell::setPrompt(str);
+}
 
 /* Constructor implementation for GetCurrDirCommand */
 GetCurrDirCommand::GetCurrDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}

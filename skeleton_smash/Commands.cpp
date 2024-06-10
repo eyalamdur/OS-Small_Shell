@@ -104,16 +104,17 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 
     if (firstWord.compare("chprompt") == 0)
         return new ChangePromptCommand(cmd_line);
-  /*
-  else if (firstWord.compare("showpid") == 0) {
+
+  if (firstWord.compare("showpid") == 0) {
     return new ShowPidCommand(cmd_line);
   }
-  else if ...
-  .....
-  else {
-    return new ExternalCommand(cmd_line);
-  }
-  */
+    /*
+    else if ...
+    .....
+    else {
+      return new ExternalCommand(cmd_line);
+    }
+    */
   return nullptr;
 }
 
@@ -188,6 +189,17 @@ void ChangePromptCommand::execute() {
    }
    SmallShell::setPrompt(str);
 }
+<<<<<<< HEAD
+=======
+
+/* C'tor for ShowPidCommand Class*/
+ShowPidCommand::ShowPidCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
+
+void ShowPidCommand::execute() {
+    pid_t pid = getpid();
+    std::cout << "smash pid is " << pid << endl;
+}
+>>>>>>> showpid
 
 /* Constructor implementation for GetCurrDirCommand */
 GetCurrDirCommand::GetCurrDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}

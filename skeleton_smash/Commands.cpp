@@ -92,7 +92,7 @@ SmallShell::~SmallShell() {
 Command *SmallShell::CreateCommand(const char *cmd_line) {
     string cmd_s = _trim(string(cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
-  
+
     if (firstWord.compare("pwd") == 0) 
         return new GetCurrDirCommand(cmd_line);
     else if (firstWord.compare("cd") == 0) 
@@ -114,8 +114,36 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 }
 
 void SmallShell::executeCommand(const char *cmd_line) {
-    Command* cmd = CreateCommand(cmd_line);
+    // Check if is a job command
+    string cmd_s = _trim(string(cmd_line));
+    bool isJob = isBackground(cmd_s);
+    const char *cmd_l = cmd_s.c_str();
+    Command* cmd = CreateCommand(cmd_l);
 
+    if (isJob){
+        // Fork a new process
+        pid_t pid = fork();
+
+        if (pid == -1) {
+            cerr << "Error forking process." << endl;
+            return;
+        }
+        
+        // Child process
+        if (pid == 0) {
+            cmd->execute();
+            while(true);
+        } 
+        // Parent process
+        else {
+            // Add child command to the parent job list
+            getJobsList()->addJob(cmd); // Add the parent command to the job list
+            getJobsList()->printJobsList();
+        }
+        return;
+    }
+    
+    // Forground Command
     if (cmd != nullptr)
         cmd->execute();
     else
@@ -136,6 +164,17 @@ JobsList* SmallShell::getJobsList(){
 /* Prints give line to terminal */
 void SmallShell::printToTerminal(string line){
     cout << line << endl;
+}
+
+bool SmallShell::isBackground(string &cmd_s){
+    // Check if the command ends with "&" to indicate a background job
+    bool isBackground = false;
+    if (!cmd_s.empty() && cmd_s[cmd_s.length() - 1] == '&') {
+        // Remove the ampersand from the command
+        cmd_s = cmd_s.substr(0, cmd_s.length() - 1);
+        return true;
+    }
+    return false;
 }
 
 /*---------------------------------------------------------------------------------------------------*/
@@ -178,15 +217,23 @@ vector<string> Command::getArgs() const {
     return arguments;
 }
 
+const char* Command::getCommand() const{
+    return m_cmd_string;
+}
+
 /*---------------------------------------------------------------------------------------------------*/
 /*---------------------------------------- Built-in Commands ----------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
 /* C'tor for BuiltInCommand Class*/
 BuiltInCommand::BuiltInCommand(const char *cmd_line) : Command(cmd_line){}
 
-
 /* Constructor implementation for GetCurrDirCommand */
 GetCurrDirCommand::GetCurrDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
+
+/* Implement the clone method for GetCurrDirCommand */
+Command* GetCurrDirCommand::clone() const {
+    return new GetCurrDirCommand(*this);
+}
 
 /* Execute method to get and print the current working directory. */
 void GetCurrDirCommand::execute() {
@@ -198,6 +245,11 @@ void GetCurrDirCommand::execute() {
 
 /* Constructor implementation for ChangeDirCommand */
 ChangeDirCommand::ChangeDirCommand(const char *cmd_line, char **plastPwd) : BuiltInCommand(cmd_line), plastPwd(plastPwd) {}
+
+/* Implement the clone method for ChangeDirCommand */
+Command* ChangeDirCommand::clone() const {
+    return new ChangeDirCommand(*this);
+}
 
 /* Execute method to change the current working directory. */
 void ChangeDirCommand::execute() {
@@ -271,6 +323,7 @@ JobsList::~JobsList(){
 
 /* Method for adding job for job list */
 void JobsList::addJob(Command* command, bool isStopped) {
+    Command* cmd = command->clone(); // virtual clone method
     m_jobEntries->emplace_back(m_nextJobID++, command, isStopped);
 }
 
@@ -284,14 +337,18 @@ void JobsList::addJob(Command* command, bool isStopped) {
         // Print the jobs list in the required format
         for (const auto& job : *m_jobEntries) {
             if (!job.isStopped()) {
-                std::cout << "[" << job.getJobID() << "] " << job.getCommand()->getArgs()[0] << std::endl;
+                std::cout << "[" << job.getJobID() << "] " << job.getCommand()->getCommand() << std::endl;
             }
         }
     }
 
 JobsCommand::JobsCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), m_jobsList(jobs) {}
 
+/* Implement the clone method for JobsCommand */
+Command* JobsCommand::clone() const {
+    return new JobsCommand(*this);
+}
+
 void JobsCommand::execute() {
-    //m_jobsList->addJob(new GetCurrDirCommand("pwd"));   // SelfTest
     m_jobsList->printJobsList();
 }

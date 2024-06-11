@@ -14,14 +14,15 @@ class Command {
 // TODO: Add your data members
 public:
     Command(const char *cmd_line);
-
     virtual ~Command();
 
     virtual void execute() = 0;
+    virtual Command* clone() const = 0;
 
     /* Args Methods */
     int getArgCount() const;
     vector<std::string> getArgs() const;
+    const char* getCommand() const;
 
     //virtual void prepare();
     //virtual void cleanup();
@@ -33,7 +34,6 @@ protected:
 class BuiltInCommand : public Command {
 public:
     BuiltInCommand(const char *cmd_line);
-
     virtual ~BuiltInCommand() {}
 
 };
@@ -41,6 +41,7 @@ public:
 class ExternalCommand : public Command {
 public:
     ExternalCommand(const char *cmd_line);
+    Command* clone() const override;
 
     virtual ~ExternalCommand() {}
 
@@ -51,6 +52,7 @@ class PipeCommand : public Command {
     // TODO: Add your data members
 public:
     PipeCommand(const char *cmd_line);
+    Command* clone() const override;
 
     virtual ~PipeCommand() {}
 
@@ -61,6 +63,7 @@ class WatchCommand : public Command {
     // TODO: Add your data members
 public:
     WatchCommand(const char *cmd_line);
+    Command* clone() const override;
 
     virtual ~WatchCommand() {}
 
@@ -71,6 +74,7 @@ class RedirectionCommand : public Command {
     // TODO: Add your data members
 public:
     explicit RedirectionCommand(const char *cmd_line);
+    Command* clone() const override;
 
     virtual ~RedirectionCommand() {}
 
@@ -80,6 +84,7 @@ public:
 class ChangeDirCommand : public BuiltInCommand {
 public:
     ChangeDirCommand(const char *cmd_line, char **plastPwd);
+    Command* clone() const override;
 
     virtual ~ChangeDirCommand() {}
 
@@ -92,6 +97,7 @@ protected:
 class GetCurrDirCommand : public BuiltInCommand {
 public:
     GetCurrDirCommand(const char *cmd_line);
+    Command* clone() const override;
 
     virtual ~GetCurrDirCommand() {}
 
@@ -101,6 +107,7 @@ public:
 class ShowPidCommand : public BuiltInCommand {
 public:
     ShowPidCommand(const char *cmd_line);
+    Command* clone() const override;
 
     virtual ~ShowPidCommand() {}
 
@@ -112,6 +119,7 @@ class JobsList;
 class QuitCommand : public BuiltInCommand {
 // TODO: Add your data members public:
     QuitCommand(const char *cmd_line, JobsList *jobs);
+    Command* clone() const override;
 
     virtual ~QuitCommand() {}
 
@@ -174,6 +182,7 @@ protected:
 
 public:
     JobsCommand(const char *cmd_line, JobsList *jobs);
+    Command* clone() const override;
 
     virtual ~JobsCommand() {}
 
@@ -262,6 +271,7 @@ public:
 
     char** getPlastPwdPtr();
     JobsList* getJobsList();
+    bool isBackground(string &cmd_s);
 };
 
 #endif //SMASH_COMMAND_H_

@@ -2,7 +2,7 @@
 #define SMASH_COMMAND_H_
 
 #include <vector>
-
+#include <map>
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 
@@ -230,13 +230,21 @@ private:
     char* m_plastPwd;
     std::string m_prompt;
     bool m_proceed;
+    std::map <std::string, std::string> alias;
 
 public:
     bool toProceed () const;
     void quit ();
+
     void setPrompt(const std::string str);
     std::string getPrompt() const;
+
+    void addAlias (std::string key, std::string value);
+    void removeAlias (std::string key);
+    void printAlias();
+
     Command *CreateCommand(const char *cmd_line);
+
 
     SmallShell(SmallShell const &) = delete; // disable copy ctor
     void operator=(SmallShell const &) = delete; // disable = operator

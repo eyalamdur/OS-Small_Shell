@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include <iomanip>
 #include "Commands.h"
+#include <regex>
 
 const string WHITESPACE = " \n\r\t\f\v";
 
@@ -100,6 +101,20 @@ bool SmallShell::toProceed() const {
 void SmallShell::quit() {
     m_proceed = false;
 }
+
+void SmallShell::addAlias(std::string name, std::string command) {
+    if (alias.find(name) == alias.end())
+        alias[name] = command;
+    else
+        cout << "smash error: alias: " << name << " already exists or is a reserved command" << endl;
+}
+
+void SmallShell::printAlias() {
+    for (auto& pair : alias){
+        cout << pair.first << "=" << pair.second << endl;
+    }
+}
+
 /**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
@@ -109,24 +124,44 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
     //Print to self to see the command      #TODO - Delete
-    cout << firstWord << endl;
+    //cout << firstWord << endl;
+    char* cmd_line2 = const_cast<char *>(cmd_line);
+    if(alias.find(firstWord)!=alias.end()){
+        cout << "second: " << alias.find(firstWord)->second << endl;
+        string command = alias.find(firstWord)->second.substr(1,alias.find(firstWord)->second.size()-2);
+        cout << "command: " << command << endl;
+        string rest = "";
+        if (firstWord.compare(cmd_s)!=0){
+            rest = cmd_s.substr(cmd_s.find_first_of(" \n"),cmd_s.find_first_of('\0'));
+        }
+        cout << "rest: " << rest << endl;
+        cmd_s = command + rest;
+        firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
+        cmd_line2 = new char[cmd_s.size() + 1];
+        std::copy(cmd_s.begin(), cmd_s.end(), cmd_line2);
+        cmd_line2[cmd_s.size()] = '\0';
 
+    }
     if (firstWord.compare("pwd") == 0)
-        return new GetCurrDirCommand(cmd_line);
+        return new GetCurrDirCommand(cmd_line2);
     //else if (firstWord.compare("cd") == 0) 
     //    return new ChangeDirCommand(cmd_line, this->getPlastPwdPtr());
 
     if (firstWord.compare("chprompt") == 0) {
-        return new ChangePromptCommand(cmd_line);
+        return new ChangePromptCommand(cmd_line2);
     }
 
     if (firstWord.compare("showpid") == 0) {
-        return new ShowPidCommand(cmd_line);
+        return new ShowPidCommand(cmd_line2);
     }
 
     if (firstWord.compare("quit") == 0) {
-        return new QuitCommand(cmd_line, nullptr);
+        return new QuitCommand(cmd_line2, nullptr);
     }
+    if (firstWord.compare("alias") == 0){
+        return new aliasCommand(cmd_line2);
+    }
+
         /*
         else if ...
         .....
@@ -233,6 +268,46 @@ void QuitCommand::execute() {
         // handle killing jobs - use the kill command
     }
     smash.quit();
+}
+
+/* C'tor for aliasCommamd class */
+aliasCommand::aliasCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
+
+void aliasCommand::execute() {
+    const std::regex aliasRegex("^alias [a-zA-Z0-9_]+='[^']*'$");
+    SmallShell &smash = SmallShell::getInstance();
+    if (getArgCount() == 1){
+        cout << "print aliases:" << endl;
+        smash.printAlias();
+    }
+    else{
+        if (std::regex_match(m_cmd_string, aliasRegex)){
+            int space = 0;
+            for (; space < (int)strlen(m_cmd_string) && m_cmd_string[space]!=' ' ; space++) {}
+            int equals = space;
+            for (; equals < (int)strlen(m_cmd_string) && m_cmd_string[equals]!='='; equals++) {}
+            cout << "space: " << space <<", equals: " << equals << endl;
+            int length = (int)strlen(m_cmd_string) - equals;
+            cout << "length: " << (int)strlen(m_cmd_string) << endl;
+            char command[length+1];
+            for (int i = 0 ; i < length ; i++){
+                command[i] = m_cmd_string[equals + 1 + i];
+            }
+            command[length] = '\0';
+            length = equals - space - 1;
+            char name[length + 1];
+            for (int i = 0; i < length; i++){
+                name[i] = m_cmd_string[space + 1 + i];
+            }
+            name[length] = '\0';
+            cout << "name: " << name << endl;
+            cout << "command: " << command << endl;
+            smash.addAlias(name, command);
+        }
+        else{
+            cout << "smash error: alias: invalid alias format" << endl;
+        }
+    }
 }
 
 /* Constructor implementation for GetCurrDirCommand */

@@ -229,11 +229,11 @@ private:
     SmallShell();
     char* m_plastPwd;
     std::string m_prompt;
+    bool m_proceed;
 
 public:
-    static bool m_proceed;
-    bool toProceed () {return m_proceed;}
-    static void quit () {m_proceed = false;}
+    bool toProceed () const;
+    void quit ();
     void setPrompt(const std::string str);
     std::string getPrompt() const;
     Command *CreateCommand(const char *cmd_line);

@@ -77,9 +77,7 @@ void _removeBackgroundSign(char *cmd_line) {
 /*---------------------------------------------------------------------------------------------------*/
 
 
-bool SmallShell::m_proceed = true;
-
-SmallShell::SmallShell() : m_prompt("smash") {
+SmallShell::SmallShell() : m_prompt("smash"), m_proceed(true) {
 // TODO: add your implementation
 }
 
@@ -93,6 +91,14 @@ void SmallShell::setPrompt(const std::string str) {
 
 std::string SmallShell::getPrompt() const {
     return m_prompt;
+}
+
+bool SmallShell::toProceed() const {
+    return m_proceed;
+}
+
+void SmallShell::quit() {
+    m_proceed = false;
 }
 /**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
@@ -222,10 +228,11 @@ void ShowPidCommand::execute() {
 QuitCommand::QuitCommand(const char *cmd_line, JobsList *jobs = nullptr) : BuiltInCommand(cmd_line) {}
 
 void QuitCommand::execute() {
+    SmallShell& smash = SmallShell::getInstance();
     if (getArgCount() > 1 && getArgs()[1].compare("kill") == 0){
-        // handle killing jobs
+        // handle killing jobs - use the kill command
     }
-    SmallShell::quit();
+    smash.quit();
 }
 
 /* Constructor implementation for GetCurrDirCommand */

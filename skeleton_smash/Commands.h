@@ -228,11 +228,12 @@ private:
     // TODO: Add your data members
     SmallShell();
     char* m_plastPwd;
-    std::string &m_prompt;
+    std::string m_prompt;
+
 
 public:
-    void setPrompt(const std::string& str);
-    std::string& getPrompt() const;
+    void setPrompt(const std::string str);
+    std::string getPrompt() const;
     Command *CreateCommand(const char *cmd_line);
 
     SmallShell(SmallShell const &) = delete; // disable copy ctor

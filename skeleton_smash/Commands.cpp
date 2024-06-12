@@ -76,7 +76,8 @@ void _removeBackgroundSign(char *cmd_line) {
 /*----------------------------------------- SmallShell Class ----------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
 
-SmallShell::SmallShell() : m_prompt((string &) "smash ") {
+SmallShell::SmallShell() {
+    m_prompt = "smash";
 // TODO: add your implementation
 }
 
@@ -84,11 +85,11 @@ SmallShell::~SmallShell() {
 // TODO: add your implementation
 }
 
-void SmallShell::setPrompt(const std::string &str) {
-    m_prompt = str + " ";
+void SmallShell::setPrompt(const std::string str) {
+    m_prompt = str;
 }
 
-std::string& SmallShell::getPrompt() const {
+std::string SmallShell::getPrompt() const {
     return m_prompt;
 }
 /**
@@ -109,11 +110,8 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 
     if (firstWord.compare("chprompt") == 0){
         return new ChangePromptCommand(cmd_line);
-        //std::string str = (command->getArgCount() == 0) ? "smash " : command->getArgs()[1];
-//        std::string str = "smash ";
-//        setPrompt(str);
-
     }
+
   /*
   else if (firstWord.compare("showpid") == 0) {
     return new ShowPidCommand(cmd_line);
@@ -190,15 +188,9 @@ ChangePromptCommand::ChangePromptCommand(const char *cmd_line) : BuiltInCommand(
 ChangePromptCommand::~ChangePromptCommand() {}
 
 void ChangePromptCommand::execute() {
-   std::string str;
-   if (getArgCount() == 1){
-        str = "smash";
-   }
-   else{
-       str = getArgs()[1];
-   }
-   SmallShell& smash = SmallShell::getInstance();
-   smash.setPrompt(str);
+    SmallShell &smash = SmallShell::getInstance();
+    std::string str = (getArgCount() > 1) ? getArgs()[1] : "smash";
+    smash.setPrompt(str);
 }
 
 /* Constructor implementation for GetCurrDirCommand */

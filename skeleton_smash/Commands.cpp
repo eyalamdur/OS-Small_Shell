@@ -76,9 +76,7 @@ void _removeBackgroundSign(char *cmd_line) {
 /*----------------------------------------- SmallShell Class ----------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
 
-std::string SmallShell::m_prompt = "smash";
-
-SmallShell::SmallShell() {
+SmallShell::SmallShell() : m_prompt((string &) "smash ") {
 // TODO: add your implementation
 }
 
@@ -86,6 +84,13 @@ SmallShell::~SmallShell() {
 // TODO: add your implementation
 }
 
+void SmallShell::setPrompt(const std::string &str) {
+    m_prompt = str + " ";
+}
+
+std::string& SmallShell::getPrompt() const {
+    return m_prompt;
+}
 /**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
@@ -102,8 +107,13 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     //else if (firstWord.compare("cd") == 0) 
     //    return new ChangeDirCommand(cmd_line, this->getPlastPwdPtr());
 
-    if (firstWord.compare("chprompt") == 0)
+    if (firstWord.compare("chprompt") == 0){
         return new ChangePromptCommand(cmd_line);
+        //std::string str = (command->getArgCount() == 0) ? "smash " : command->getArgs()[1];
+//        std::string str = "smash ";
+//        setPrompt(str);
+
+    }
   /*
   else if (firstWord.compare("showpid") == 0) {
     return new ShowPidCommand(cmd_line);
@@ -119,7 +129,8 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 
 void SmallShell::executeCommand(const char *cmd_line) {
     Command* cmd = CreateCommand(cmd_line);
-    cmd->execute();
+    if (cmd != nullptr)
+        cmd->execute();
     // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
 
@@ -186,7 +197,8 @@ void ChangePromptCommand::execute() {
    else{
        str = getArgs()[1];
    }
-   SmallShell::setPrompt(str);
+   SmallShell& smash = SmallShell::getInstance();
+   smash.setPrompt(str);
 }
 
 /* Constructor implementation for GetCurrDirCommand */

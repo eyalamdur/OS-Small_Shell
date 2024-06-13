@@ -5,11 +5,16 @@
 #include "Commands.h"
 #include "signals.h"
 
-int main2(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
     if (signal(SIGINT, ctrlCHandler) == SIG_ERR) {
         perror("smash error: failed to set ctrl-C handler");
     }
 
+    // Register the SIGCHLD signal handler
+    if (signal(SIGCHLD, childProcessHandler) == SIG_ERR) {
+        perror("smash error: failed to set child process handler");
+    }
+    
     //TODO: setup sig alarm handler
 
     SmallShell &smash = SmallShell::getInstance();

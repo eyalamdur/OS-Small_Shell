@@ -3,6 +3,8 @@
 #include <string.h>
 #include <iostream>
 #include <algorithm>
+#include <typeinfo>
+#include <typeindex>
 #include <vector>
 #include <sstream>
 #include <sys/wait.h>
@@ -21,6 +23,10 @@ const string WHITESPACE = " \n\r\t\f\v";
 #define FUNC_ENTRY()
 #define FUNC_EXIT()
 #endif
+
+/*---------------------------------------------------------------------------------------------------*/
+/*---------------------------------------------- Utils ----------------------------------------------*/
+/*---------------------------------------------------------------------------------------------------*/
 
 string _ltrim(const string &s) {
     size_t start = s.find_first_not_of(WHITESPACE);
@@ -51,7 +57,7 @@ int _parseCommandLine(const char *cmd_line, char **args) {
     FUNC_EXIT()
 }
 
-bool _isBackgroundComamnd(const char *cmd_line) {
+bool _isBackgroundCommand(const char *cmd_line) {
     const string str(cmd_line);
     return str[str.find_last_not_of(WHITESPACE)] == '&';
 }
@@ -74,6 +80,16 @@ void _removeBackgroundSign(char *cmd_line) {
     cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
+const char* extractCommand(const char* cmd_l){
+    // Make a modifiable copy of the command line and remove & if exists
+    char newCmdLine[strlen(cmd_l) + 1];
+    strcpy(newCmdLine, cmd_l);
+    _removeBackgroundSign(newCmdLine);
+
+    string cmd_s = _trim(string(newCmdLine));
+    return cmd_s.c_str();
+}
+
 /*---------------------------------------------------------------------------------------------------*/
 /*----------------------------------------- SmallShell Class ----------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
@@ -93,61 +109,61 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     string cmd_s = _trim(string(cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
+    // Check if the command line ends with "&" for background execution
+    bool backgroundExecution = _isBackgroundCommand(cmd_line);
+    char* newCmdLine =  strdup(cmd_line); // Convert const char* to char*
+    _removeBackgroundSign(newCmdLine);
+
     if (firstWord.compare("pwd") == 0) 
-        return new GetCurrDirCommand(cmd_line);
+        return new GetCurrDirCommand(newCmdLine);
     else if (firstWord.compare("cd") == 0) 
-        return new ChangeDirCommand(cmd_line, getPlastPwdPtr());
+        return new ChangeDirCommand(newCmdLine, getPlastPwdPtr());
     else if (firstWord.compare("jobs") == 0) 
-        return new JobsCommand(cmd_line, getJobsList());
-  
+        return new JobsCommand(newCmdLine, getJobsList());
+    else if (firstWord.compare("kill") == 0) 
+        return new KillCommand(newCmdLine, getJobsList());
+    else
+        return new ExternalCommand(newCmdLine, backgroundExecution);
   /*
   else if (firstWord.compare("showpid") == 0) {
     return new ShowPidCommand(cmd_line);
   }
-  else if ...
-  .....
-  else {
-    return new ExternalCommand(cmd_line);
-  }
+
   */
   return nullptr;
 }
 
 void SmallShell::executeCommand(const char *cmd_line) {
-    // Check if is a job command
-    string cmd_s = _trim(string(cmd_line));
-    bool isJob = isBackground(cmd_s);
-    const char *cmd_l = cmd_s.c_str();
-    Command* cmd = CreateCommand(cmd_l);
-
-    if (isJob){
-        // Fork a new process
-        pid_t pid = fork();
-
-        if (pid == -1) {
-            cerr << "Error forking process." << endl;
-            return;
-        }
-        
-        // Child process
-        if (pid == 0) {
-            cmd->execute();
-            while(true);
-        } 
-        // Parent process
-        else {
-            // Add child command to the parent job list
-            getJobsList()->addJob(cmd); // Add the parent command to the job list
-            getJobsList()->printJobsList();
-        }
+    Command* cmd = CreateCommand(cmd_line);
+    
+    // Invalid Command
+    if (cmd == nullptr){
+        printToTerminal("Unknown Command");
         return;
     }
-    
-    // Forground Command
-    if (cmd != nullptr)
+
+    // Fork a new process
+    pid_t pid = fork();
+
+    if (pid == ERROR_VALUE) {
+        cerr << "Error forking process." << endl;
+        return;
+    }
+
+    // Child Process
+    if (pid == CHILD_ID)
         cmd->execute();
-    else
-        printToTerminal("Unknown Command");
+
+    // Parent process
+    if (pid > CHILD_ID) {
+        if(cmd->isBackgroundCommand() && typeid(*cmd) == typeid(ExternalCommand))
+            getJobsList()->addJob(cmd, pid);
+        else{
+            // Wait for the child process to finish
+            int status;
+            waitpid(pid, &status, 0);
+        }
+    }
 
     // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
@@ -166,22 +182,11 @@ void SmallShell::printToTerminal(string line){
     cout << line << endl;
 }
 
-bool SmallShell::isBackground(string &cmd_s){
-    // Check if the command ends with "&" to indicate a background job
-    bool isBackground = false;
-    if (!cmd_s.empty() && cmd_s[cmd_s.length() - 1] == '&') {
-        // Remove the ampersand from the command
-        cmd_s = cmd_s.substr(0, cmd_s.length() - 1);
-        return true;
-    }
-    return false;
-}
-
 /*---------------------------------------------------------------------------------------------------*/
 /*-------------------------------------- General Command Class --------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
 /* C'tor & D'tor for Command Class*/
-Command::Command(const char *cmd_line) : m_cmd_string(cmd_line){}
+Command::Command(const char *cmd_line, bool isBgCmd) : m_cmd_string(string(cmd_line)), m_bgCmd(isBgCmd){}
 
 // Virtual destructor implementation
 Command::~Command() {} 
@@ -189,7 +194,7 @@ Command::~Command() {}
 /* Method to count the number of arguments, assuming arguments are space-separated */
 int Command::getArgCount() const {
     int count = 0;
-    const char* cmd = m_cmd_string; // m_cmd_string holds the command string
+    const char* cmd = m_cmd_string.c_str(); // m_cmd_string holds the command string
     while (*cmd != '\0') {
         if (*cmd != ' ') {
             count++;
@@ -217,8 +222,12 @@ vector<string> Command::getArgs() const {
     return arguments;
 }
 
-const char* Command::getCommand() const{
+string Command::getCommand() const{
     return m_cmd_string;
+}
+
+bool Command::isBackgroundCommand() const{
+    return m_bgCmd;
 }
 
 /*---------------------------------------------------------------------------------------------------*/
@@ -226,6 +235,7 @@ const char* Command::getCommand() const{
 /*---------------------------------------------------------------------------------------------------*/
 /* C'tor for BuiltInCommand Class*/
 BuiltInCommand::BuiltInCommand(const char *cmd_line) : Command(cmd_line){}
+
 
 /* Constructor implementation for GetCurrDirCommand */
 GetCurrDirCommand::GetCurrDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
@@ -283,12 +293,95 @@ void ChangeDirCommand::execute() {
 }
 
 
+JobsCommand::JobsCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), m_jobsList(jobs) {}
+
+/* Implement the clone method for JobsCommand */
+Command* JobsCommand::clone() const {
+    return new JobsCommand(*this);
+}
+
+void JobsCommand::execute() {
+    m_jobsList->printJobsList();
+}
+
+
+/* Constructor implementation for KillCommand */
+KillCommand::KillCommand(const char *cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line) {}
+
+/* Implement the clone method for KillCommand */
+Command* KillCommand::clone() const {
+    return new KillCommand(*this);
+}
+
+/* Execute method to kill given jobID. */
+void KillCommand::execute() {
+    // TODO
+}
+
 /*---------------------------------------------------------------------------------------------------*/
-/*------------------------------------------ Jobs Commands ------------------------------------------*/
+/*---------------------------------------- External Commands ----------------------------------------*/
+/*---------------------------------------------------------------------------------------------------*/
+
+/* Constructor implementation for ExternalCommand */
+ExternalCommand::ExternalCommand(const char *cmd_line, bool isBgCmd) : Command(cmd_line, isBgCmd){}
+
+/* Implement the clone method for KillCommand */
+Command* ExternalCommand::clone() const {
+    return new ExternalCommand(*this);
+}
+
+/* Execute method to get and print the current working directory. */
+void ExternalCommand::execute() {
+    // Check if the command line contains special characters like '*' or '?'
+        string cmd = getCommand();
+
+        // Check for Simple/Complex command
+        if (cmd.find_first_of("*?") != string::npos) 
+            runComplexCommand(cmd);
+        else
+            runSimpleCommand(cmd);
+}
+
+void ExternalCommand::runSimpleCommand(const string& cmd) {
+    // Split command into tokens (command and arguments)
+    vector<string> tokens = splitCommand(cmd);
+
+    // Construct argument array for execvp
+    char* args[tokens.size() + 1];
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        args[i] = strdup(tokens[i].c_str());
+    }
+    args[tokens.size()] = nullptr;
+
+    // Execute the command using execvp
+    execvp(args[0], args);
+
+    // Handle execvp failure
+    cerr << "External command execution failed" << endl;
+    exit(1);
+}
+
+/* Run a complex external command by executing bash */
+void ExternalCommand::runComplexCommand(const string& cmd) {
+    string bashCmd = "bash -c \"" + cmd + "\"";
+    system(bashCmd.c_str());
+}
+
+vector<string> ExternalCommand::splitCommand(const string& cmd) {
+    istringstream iss(cmd);
+    vector<string> tokens;
+    for (string token; iss >> token;) {
+        tokens.push_back(token);
+    }
+    return tokens;
+}
+
+/*---------------------------------------------------------------------------------------------------*/
+/*------------------------------------------- Jobs Methods ------------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
 
 /* C'tor for JobEntry & Setters/Getters */
-JobsList::JobEntry::JobEntry(int id, Command* cmd, bool stopped) : m_jobID(id), m_command(cmd), m_isStopped(stopped) {}
+JobsList::JobEntry::JobEntry(int id, int pid, Command* cmd, bool stopped) : m_jobID(id), m_processID(pid), m_command(cmd), m_isStopped(stopped) {}
 
 void JobsList::JobEntry::setJobID(int id){
     m_jobID = id;
@@ -321,10 +414,32 @@ JobsList::~JobsList(){
     delete m_jobEntries;
 }
 
+int JobsList::getNextJobID() const{
+    return m_nextJobID;
+}
+
 /* Method for adding job for job list */
-void JobsList::addJob(Command* command, bool isStopped) {
+void JobsList::addJob(Command* command, int jobPid, bool isStopped) {
     Command* cmd = command->clone(); // virtual clone method
-    m_jobEntries->emplace_back(m_nextJobID++, command, isStopped);
+    m_jobEntries->emplace_back(m_nextJobID++, jobPid, command, isStopped);
+}
+
+void JobsList::removeJobById(int jobId){
+    // Rearrange the jobs oreder and returns an iterator pointing to the new "end" of the range.
+    auto it = remove_if(m_jobEntries->begin(), m_jobEntries->end(), [jobId](const JobEntry& job){
+        return job.getJobID() == jobId;
+    });
+
+    // Remove given job.
+    if (it != m_jobEntries->end()) {
+        m_jobEntries->erase(it, m_jobEntries->end());
+
+        // Adjust the next job ID if needed
+        if (jobId == m_nextJobID - 1)
+            m_nextJobID--;
+    }
+
+
 }
 
 /* Method for printint job list to terminal */
@@ -342,13 +457,3 @@ void JobsList::addJob(Command* command, bool isStopped) {
         }
     }
 
-JobsCommand::JobsCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), m_jobsList(jobs) {}
-
-/* Implement the clone method for JobsCommand */
-Command* JobsCommand::clone() const {
-    return new JobsCommand(*this);
-}
-
-void JobsCommand::execute() {
-    m_jobsList->printJobsList();
-}

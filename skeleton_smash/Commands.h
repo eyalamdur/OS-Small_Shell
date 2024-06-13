@@ -7,13 +7,15 @@
 #define COMMAND_MAX_ARGS (20)
 #define CD_COMMAND_ARGS_NUM (2)
 #define DEFAULT_JOB_ID (1)
+#define CHILD_ID (0)
+#define ERROR_VALUE (-1)
 
 using namespace std;
 
 class Command {
 // TODO: Add your data members
 public:
-    Command(const char *cmd_line);
+    Command(const char *cmd_line, bool isBgCmd = false);
     virtual ~Command();
 
     virtual void execute() = 0;
@@ -22,13 +24,15 @@ public:
     /* Args Methods */
     int getArgCount() const;
     vector<std::string> getArgs() const;
-    const char* getCommand() const;
+    string getCommand() const;
+    bool isBackgroundCommand() const;
 
     //virtual void prepare();
     //virtual void cleanup();
     // TODO: Add your extra methods if needed
 protected:
-    const char* m_cmd_string;
+    string m_cmd_string;
+    bool m_bgCmd;    
 };
 
 class BuiltInCommand : public Command {
@@ -40,12 +44,14 @@ public:
 
 class ExternalCommand : public Command {
 public:
-    ExternalCommand(const char *cmd_line);
+    ExternalCommand(const char *cmd_line, bool isBgCmd);
     Command* clone() const override;
-
     virtual ~ExternalCommand() {}
 
     void execute() override;
+    void runSimpleCommand(const string& cmd);
+    void runComplexCommand(const string& cmd);
+    vector<string> splitCommand(const string& cmd);
 };
 
 class PipeCommand : public Command {
@@ -132,11 +138,12 @@ public:
     class JobEntry {
     protected:
         int m_jobID;
+        int m_processID;
         Command* m_command;
         bool m_isStopped;
     
     public:
-        JobEntry(int id, Command* cmd, bool stopped);
+        JobEntry(int id, int pid, Command* cmd, bool stopped);
 
         /* Setters & Getters */
         void setJobID(int id);
@@ -154,7 +161,7 @@ public:
 
     ~JobsList();
 
-    void addJob(Command *cmd, bool isStopped = false);
+    void addJob(Command *cmd, int jobPid, bool isStopped = false);
 
     void printJobsList();
 
@@ -171,6 +178,8 @@ public:
     JobEntry *getLastStoppedJob(int *jobId);
     // TODO: Add extra methods or modify exisitng ones as needed
 
+    int getNextJobID() const;
+
 protected:
     vector<JobEntry>* m_jobEntries;
     int m_nextJobID;
@@ -183,7 +192,6 @@ protected:
 public:
     JobsCommand(const char *cmd_line, JobsList *jobs);
     Command* clone() const override;
-
     virtual ~JobsCommand() {}
 
     void execute() override;
@@ -193,7 +201,7 @@ class KillCommand : public BuiltInCommand {
     // TODO: Add your data members
 public:
     KillCommand(const char *cmd_line, JobsList *jobs);
-
+    Command* clone() const override;
     virtual ~KillCommand() {}
 
     void execute() override;
@@ -203,7 +211,7 @@ class ForegroundCommand : public BuiltInCommand {
     // TODO: Add your data members
 public:
     ForegroundCommand(const char *cmd_line, JobsList *jobs);
-
+    Command* clone() const override;
     virtual ~ForegroundCommand() {}
 
     void execute() override;
@@ -271,7 +279,6 @@ public:
 
     char** getPlastPwdPtr();
     JobsList* getJobsList();
-    bool isBackground(string &cmd_s);
 };
 
 #endif //SMASH_COMMAND_H_

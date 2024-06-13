@@ -76,7 +76,8 @@ void _removeBackgroundSign(char *cmd_line) {
 /*---------------------------------------------------------------------------------------------------*/
 /*----------------------------------------- SmallShell Class ----------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
-
+const std::set<std::string> SmallShell::COMMANDS = {"chprompt", "showpid", "pwd", "cd", "jobs", "fg",
+                                              "quit", "kill", "alias", "unalias"};
 
 SmallShell::SmallShell() : m_prompt("smash"), m_proceed(true) {
 // TODO: add your implementation
@@ -103,7 +104,7 @@ void SmallShell::quit() {
 }
 
 void SmallShell::addAlias(std::string name, std::string command) {
-    if (alias.find(name) == alias.end())
+    if (alias.find(name) == alias.end() && COMMANDS.find(name) == COMMANDS.end())
         alias[name] = command;
     else
         cout << "smash error: alias: " << name << " already exists or is a reserved command" << endl;
@@ -111,7 +112,7 @@ void SmallShell::addAlias(std::string name, std::string command) {
 
 void SmallShell::printAlias() {
     for (auto& pair : alias){
-        cout << pair.first << "=" << pair.second << endl;
+        cout << pair.first << "='" << pair.second << "'" << endl;
     }
 }
 
@@ -128,7 +129,7 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     char* cmd_line2 = const_cast<char *>(cmd_line);
     if(alias.find(firstWord)!=alias.end()){
         cout << "second: " << alias.find(firstWord)->second << endl;
-        string command = alias.find(firstWord)->second.substr(1,alias.find(firstWord)->second.size()-2);
+        string command = alias.find(firstWord)->second;
         cout << "command: " << command << endl;
         string rest = "";
         if (firstWord.compare(cmd_s)!=0){
@@ -271,7 +272,30 @@ void QuitCommand::execute() {
 }
 
 /* C'tor for aliasCommamd class */
-aliasCommand::aliasCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
+aliasCommand::aliasCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {
+    int space = 0;
+    for (; space < (int)strlen(m_cmd_string) && m_cmd_string[space]!=' ' ; space++) {}
+    int equals = space;
+    for (; equals < (int)strlen(m_cmd_string) && m_cmd_string[equals]!='='; equals++) {}
+    cout << "space: " << space <<", equals: " << equals << endl;
+    int length = (int)strlen(m_cmd_string) - equals - 3;
+    cout << "length: " << (int)strlen(m_cmd_string) << endl;
+    char command[length+1];
+    for (int i = 0 ; i < length ; i++){
+        command[i] = m_cmd_string[equals + 2 + i];
+    }
+    command[length] = '\0';
+    length = equals - space - 1;
+    char name[length + 1];
+    for (int i = 0; i < length; i++){
+        name[i] = m_cmd_string[space + 1 + i];
+    }
+    name[length] = '\0';
+    cout << "name: " << name << endl;
+    cout << "command: " << command << endl;
+    this->name=name;
+    this->command=command;
+}
 
 void aliasCommand::execute() {
     const std::regex aliasRegex("^alias [a-zA-Z0-9_]+='[^']*'$");
@@ -281,27 +305,10 @@ void aliasCommand::execute() {
         smash.printAlias();
     }
     else{
-        if (std::regex_match(m_cmd_string, aliasRegex)){
-            int space = 0;
-            for (; space < (int)strlen(m_cmd_string) && m_cmd_string[space]!=' ' ; space++) {}
-            int equals = space;
-            for (; equals < (int)strlen(m_cmd_string) && m_cmd_string[equals]!='='; equals++) {}
-            cout << "space: " << space <<", equals: " << equals << endl;
-            int length = (int)strlen(m_cmd_string) - equals;
-            cout << "length: " << (int)strlen(m_cmd_string) << endl;
-            char command[length+1];
-            for (int i = 0 ; i < length ; i++){
-                command[i] = m_cmd_string[equals + 1 + i];
-            }
-            command[length] = '\0';
-            length = equals - space - 1;
-            char name[length + 1];
-            for (int i = 0; i < length; i++){
-                name[i] = m_cmd_string[space + 1 + i];
-            }
-            name[length] = '\0';
-            cout << "name: " << name << endl;
-            cout << "command: " << command << endl;
+        std::string first = command.substr(0, command.find_first_of(" \n"));
+        cout << "first :~" << first << "~" << endl;
+        if (std::regex_match(m_cmd_string, aliasRegex) &&
+        smash.COMMANDS.find(first) != smash.COMMANDS.end()){
             smash.addAlias(name, command);
         }
         else{

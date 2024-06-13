@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <map>
+#include <set>
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 
@@ -198,6 +199,9 @@ public:
 };
 
 class aliasCommand : public BuiltInCommand {
+private:
+    std::string name;
+    std::string command;
 public:
     aliasCommand(const char *cmd_line);
 
@@ -233,13 +237,14 @@ private:
     std::map <std::string, std::string> alias;
 
 public:
+    const static std::set<std::string> COMMANDS;
     bool toProceed () const;
     void quit ();
 
     void setPrompt(const std::string str);
     std::string getPrompt() const;
 
-    void addAlias (std::string key, std::string value);
+    void addAlias (std::string name, std::string command);
     void removeAlias (std::string key);
     void printAlias();
 
@@ -259,6 +264,8 @@ public:
 
     void executeCommand(const char *cmd_line);
     char** getPlastPwdPtr();
+
+
 };
 
 #endif //SMASH_COMMAND_H_

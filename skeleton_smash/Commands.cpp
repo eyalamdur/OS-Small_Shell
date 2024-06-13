@@ -331,7 +331,7 @@ void aliasCommand::execute() {
     }
 }
 
-/* C'tor for unaliasCommand class */
+/* C'tor for unaliasCommand class. */
 unaliasCommand::unaliasCommand(const char *cmd_line) : BuiltInCommand(cmd_line){}
 
 void unaliasCommand::execute() {

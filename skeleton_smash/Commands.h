@@ -245,7 +245,7 @@ public:
     std::string getPrompt() const;
 
     void addAlias (std::string name, std::string command);
-    void removeAlias (std::string key);
+    void removeAlias (std::vector<std::string>args);
     void printAlias();
 
     Command *CreateCommand(const char *cmd_line);

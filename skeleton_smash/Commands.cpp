@@ -110,6 +110,17 @@ void SmallShell::addAlias(std::string name, std::string command) {
         cout << "smash error: alias: " << name << " already exists or is a reserved command" << endl;
 }
 
+void SmallShell::removeAlias(std::vector<std::string> args) {
+    for (int i = 1; i < (int)args.size(); i++){
+        if (alias.find(args[i]) != alias.end())
+            alias.erase(args[i]);
+        else{
+            cout << "smash error: unalias: " << args[i] << " alias does not exist" << endl;
+            break;
+        }
+    }
+}
+
 void SmallShell::printAlias() {
     for (auto& pair : alias){
         cout << pair.first << "='" << pair.second << "'" << endl;
@@ -128,14 +139,14 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     //cout << firstWord << endl;
     char* cmd_line2 = const_cast<char *>(cmd_line);
     if(alias.find(firstWord)!=alias.end()){
-        cout << "second: " << alias.find(firstWord)->second << endl;
+        //cout << "second: " << alias.find(firstWord)->second << endl;
         string command = alias.find(firstWord)->second;
-        cout << "command: " << command << endl;
+        //cout << "command: " << command << endl;
         string rest = "";
         if (firstWord.compare(cmd_s)!=0){
             rest = cmd_s.substr(cmd_s.find_first_of(" \n"),cmd_s.find_first_of('\0'));
         }
-        cout << "rest: " << rest << endl;
+        //cout << "rest: " << rest << endl;
         cmd_s = command + rest;
         firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
         cmd_line2 = new char[cmd_s.size() + 1];
@@ -161,6 +172,9 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     }
     if (firstWord.compare("alias") == 0){
         return new aliasCommand(cmd_line2);
+    }
+    if (firstWord.compare("unalias") == 0){
+        return new unaliasCommand(cmd_line2);
     }
 
         /*
@@ -277,9 +291,9 @@ aliasCommand::aliasCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {
     for (; space < (int)strlen(m_cmd_string) && m_cmd_string[space]!=' ' ; space++) {}
     int equals = space;
     for (; equals < (int)strlen(m_cmd_string) && m_cmd_string[equals]!='='; equals++) {}
-    cout << "space: " << space <<", equals: " << equals << endl;
+    //cout << "space: " << space <<", equals: " << equals << endl;
     int length = (int)strlen(m_cmd_string) - equals - 3;
-    cout << "length: " << (int)strlen(m_cmd_string) << endl;
+    //cout << "length: " << (int)strlen(m_cmd_string) << endl;
     char command[length+1];
     for (int i = 0 ; i < length ; i++){
         command[i] = m_cmd_string[equals + 2 + i];
@@ -291,8 +305,8 @@ aliasCommand::aliasCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {
         name[i] = m_cmd_string[space + 1 + i];
     }
     name[length] = '\0';
-    cout << "name: " << name << endl;
-    cout << "command: " << command << endl;
+    //cout << "name: " << name << endl;
+    //cout << "command: " << command << endl;
     this->name=name;
     this->command=command;
 }
@@ -301,12 +315,12 @@ void aliasCommand::execute() {
     const std::regex aliasRegex("^alias [a-zA-Z0-9_]+='[^']*'$");
     SmallShell &smash = SmallShell::getInstance();
     if (getArgCount() == 1){
-        cout << "print aliases:" << endl;
+        //cout << "print aliases:" << endl;
         smash.printAlias();
     }
     else{
         std::string first = command.substr(0, command.find_first_of(" \n"));
-        cout << "first :~" << first << "~" << endl;
+        //cout << "first :~" << first << "~" << endl;
         if (std::regex_match(m_cmd_string, aliasRegex) &&
         smash.COMMANDS.find(first) != smash.COMMANDS.end()){
             smash.addAlias(name, command);
@@ -315,6 +329,18 @@ void aliasCommand::execute() {
             cout << "smash error: alias: invalid alias format" << endl;
         }
     }
+}
+
+/* C'tor for unaliasCommand class */
+unaliasCommand::unaliasCommand(const char *cmd_line) : BuiltInCommand(cmd_line){}
+
+void unaliasCommand::execute() {
+    SmallShell &smash = SmallShell::getInstance();
+    if (getArgCount() == 1){
+        cout << "smash error: unalias: not enough arguments" << endl;
+    }
+    else
+        smash.removeAlias(getArgs());
 }
 
 /* Constructor implementation for GetCurrDirCommand */

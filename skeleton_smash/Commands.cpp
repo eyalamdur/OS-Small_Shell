@@ -78,14 +78,24 @@ void _removeBackgroundSign(char *cmd_line) {
     cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
-const char* extractCommand(const char* cmd_l){
+string _removeBackgroundSignForString(string cmd){
+    // find last character other than spaces
+    unsigned int idx = cmd.find_last_not_of(WHITESPACE);
+    
+    // if the command line does end with & then replace it
+    if (cmd[idx] == '&')
+        cmd.erase(idx);
+    return cmd;
+}
+
+char* extractCommand(const char* cmd_l,string &firstWord){
     // Make a modifiable copy of the command line and remove & if exists
-    char newCmdLine[strlen(cmd_l) + 1];
-    strcpy(newCmdLine, cmd_l);
+    char* newCmdLine = strdup(cmd_l);
     _removeBackgroundSign(newCmdLine);
 
     string cmd_s = _trim(string(newCmdLine));
-    return cmd_s.c_str();
+    firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
+    return newCmdLine;
 }
 
 /*---------------------------------------------------------------------------------------------------*/
@@ -105,23 +115,21 @@ SmallShell::~SmallShell() {
 */
 Command *SmallShell::CreateCommand(const char *cmd_line) {
     // Check if the command line ends with "&" for background execution
-    bool backgroundExecution = _isBackgroundCommand(cmd_line);
-    char* newCmdLine =  strdup(cmd_line); // Convert const char* to char*
-    _removeBackgroundSign(newCmdLine);
+    string firstWord;
+    char* newCmdLine = extractCommand(cmd_line, firstWord);
 
-    string cmd_s = _trim(string(newCmdLine));
-    string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
-    
     if (firstWord.compare("pwd") == 0) 
         return new GetCurrDirCommand(newCmdLine);
     else if (firstWord.compare("cd") == 0) 
         return new ChangeDirCommand(newCmdLine, getPlastPwdPtr());
     else if (firstWord.compare("jobs") == 0) 
         return new JobsCommand(newCmdLine, getJobsList());
+    else if (firstWord.compare("fg") == 0) 
+        return new ForegroundCommand(newCmdLine, getJobsList());
     else if (firstWord.compare("kill") == 0) 
         return new KillCommand(newCmdLine, getJobsList());
     else
-        return new ExternalCommand(newCmdLine, backgroundExecution);
+        return new ExternalCommand(cmd_line, _isBackgroundCommand(cmd_line));
   /*
   else if (firstWord.compare("showpid") == 0) {
     return new ShowPidCommand(cmd_line);
@@ -140,30 +148,30 @@ void SmallShell::executeCommand(const char *cmd_line) {
         return;
     }
 
-    // Fork a new process
-    pid_t pid = fork();
 
-    if (pid == ERROR_VALUE) {
-        cerr << "Error forking process." << endl;
-        return;
-    }
+    if(cmd->isExternalCommand()){
+        // Fork a new process
+        pid_t pid = fork();
 
-    // Child Process
-    if (pid == CHILD_ID)
-        cmd->execute();
+        if (pid == ERROR_VALUE) {
+            cerr << "Error forking process." << endl;
+            return;
+        }
 
-    // Parent process
-    if (pid > CHILD_ID) {
-        if(cmd->isBackgroundCommand() && cmd->isExternalCommand())
-            getJobsList()->addJob(cmd, pid);
-        else{
-            // Wait for the child process to finish
-            int status;
-            waitpid(pid, &status, 0);
+        // Parent process
+        if (pid > CHILD_ID){
+            if(cmd->isBackgroundCommand())
+                getJobsList()->addJob(cmd, pid);
+            else{
+                int status;
+                waitpid(pid, &status,0);
+            }
+            return;
         }
     }
 
-    // Please note that you must fork smash process for some commands (e.g., external commands....)
+    // Execute command
+    cmd->execute();
 }
 
 /* Gets pointer to the last path of working directory */
@@ -308,6 +316,55 @@ void JobsCommand::execute() {
 }
 
 
+ForegroundCommand::ForegroundCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), m_jobsList(jobs){}
+
+/* Implement the clone method for JobsCommand */
+Command* ForegroundCommand::clone() const {
+    return new ForegroundCommand(*this);
+}
+
+void ForegroundCommand::execute() {
+    // Check if the jobs list is empty
+    if (m_jobsList->isEmpty()) {
+        cout << "smash error: fg: jobs list is empty" << endl;
+        return;
+    }
+    
+    int jobID;
+    // No job ID specified, select the job with the maximum job ID
+    if (getArgs().size() == 1)
+        jobID = m_jobsList->getNextJobID() - 1;
+    else if (getArgs().size() == 2) {
+        try {
+            jobID = stoi(getArgs()[1]);
+            if (m_jobsList->getJobById(jobID) == nullptr) {
+                cout << "smash error: fg: job-id " << jobID << " does not exist" << endl;
+                return;
+            }
+        } 
+        catch (const invalid_argument& e) {
+            cout << "smash error: fg: invalid arguments" << endl;
+            return;
+        }
+    } 
+    else {
+        cout << "smash error: fg: invalid arguments" << endl;
+        return;
+    }
+
+    // Get the job and remove it from the jobs list
+    JobsList::JobEntry* jobEntry = m_jobsList->getJobById(jobID);
+    m_jobsList->removeJobById(jobID);
+
+    // Bring the job to the foreground and print the command line along with the PID
+    cout << jobEntry->getCommand()->getCommand() << " " << jobEntry->getProcessID() << endl;
+
+    // Wait for the process to finish, bringing it to the foreground
+    int status;
+    waitpid(jobEntry->getProcessID(), &status, 0);
+}
+
+
 /* Constructor implementation for KillCommand */
 KillCommand::KillCommand(const char *cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line) {}
 
@@ -337,6 +394,7 @@ Command* ExternalCommand::clone() const {
 void ExternalCommand::execute() {
     // Check if the command line contains special characters like '*' or '?'
         string cmd = getCommand();
+        cmd = _removeBackgroundSignForString(cmd);
 
         // Check for Simple/Complex command
         if (cmd.find_first_of("*?") != string::npos) 
@@ -393,6 +451,10 @@ void JobsList::JobEntry::setJobID(int id){
     m_jobID = id;
 }
 
+void JobsList::JobEntry::setProcessID(int id){
+    m_processID = id;
+}
+
 void JobsList::JobEntry::setCommand(Command* cmd){
     m_command = cmd;
 }
@@ -403,6 +465,10 @@ void JobsList::JobEntry::setStopped(bool stopped){
 
 int JobsList::JobEntry::getJobID() const{
     return m_jobID;
+}
+
+int JobsList::JobEntry::getProcessID() const{
+    return m_processID;
 }
 
 Command* JobsList::JobEntry::getCommand() const{
@@ -428,6 +494,26 @@ int JobsList::getNextJobID() const{
 void JobsList::addJob(Command* command, int jobPid, bool isStopped) {
     Command* cmd = command->clone(); // virtual clone method
     m_jobEntries->emplace_back(m_nextJobID++, jobPid, command, isStopped);
+}
+
+JobsList::JobEntry* JobsList::getJobById(int jobId){
+    for (auto& job : *m_jobEntries) {
+        if (job.getJobID() == jobId) {
+            return &job; // Return a pointer to the job with the specified process ID
+        }
+    }
+
+    return nullptr; // Return nullptr if no job with the specified process ID is found
+}
+
+JobsList::JobEntry* JobsList::getJobByPid(int Pid){
+    for (auto& job : *m_jobEntries) {
+        if (job.getProcessID() == Pid) {
+            return &job; // Return a pointer to the job with the specified process ID
+        }
+    }
+
+    return nullptr; // Return nullptr if no job with the specified process ID is found
 }
 
 void JobsList::removeJobById(int jobId){
@@ -463,3 +549,6 @@ void JobsList::removeJobById(int jobId){
         }
     }
 
+bool JobsList::isEmpty(){
+    return m_jobEntries->empty();
+}

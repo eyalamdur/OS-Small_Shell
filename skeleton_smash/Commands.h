@@ -149,9 +149,11 @@ public:
 
         /* Setters & Getters */
         void setJobID(int id);
+        void setProcessID(int id);
         void setCommand(Command* cmd);
         void setStopped(bool stopped);
         int getJobID() const;
+        int getProcessID() const;
         Command* getCommand() const;
         bool isStopped() const;
 
@@ -173,13 +175,17 @@ public:
 
     JobEntry *getJobById(int jobId);
 
+    JobEntry *getJobByPid(int Pid);
+
     void removeJobById(int jobId);
 
     JobEntry *getLastJob(int *lastJobId);
 
     JobEntry *getLastStoppedJob(int *jobId);
-    // TODO: Add extra methods or modify exisitng ones as needed
 
+    // TODO: Add extra methods or modify exisitng ones as needed
+    bool isEmpty();
+    
     int getNextJobID() const;
 
 protected:
@@ -210,7 +216,9 @@ public:
 };
 
 class ForegroundCommand : public BuiltInCommand {
-    // TODO: Add your data members
+protected:
+    JobsList* m_jobsList;
+
 public:
     ForegroundCommand(const char *cmd_line, JobsList *jobs);
     Command* clone() const override;

@@ -2,7 +2,8 @@
 #define SMASH_COMMAND_H_
 
 #include <vector>
-
+#include <map>
+#include <set>
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 #define CD_COMMAND_ARGS_NUM (2)
@@ -23,7 +24,7 @@ public:
 
     /* Args Methods */
     int getArgCount() const;
-    vector<std::string> getArgs() const;
+    vector<string> getArgs() const;
     string getCommand() const;
     bool isBackgroundCommand() const;
     virtual bool isExternalCommand() const;
@@ -126,6 +127,7 @@ class JobsList;
 
 class QuitCommand : public BuiltInCommand {
 // TODO: Add your data members public:
+public:
     QuitCommand(const char *cmd_line, JobsList *jobs);
     Command* clone() const override;
 
@@ -230,7 +232,7 @@ public:
 class ListDirCommand : public BuiltInCommand {
 public:
     ListDirCommand(const char *cmd_line);
-
+    Command* clone() const override;
     virtual ~ListDirCommand() {}
 
     void execute() override;
@@ -239,16 +241,19 @@ public:
 class GetUserCommand : public BuiltInCommand {
 public:
     GetUserCommand(const char *cmd_line);
-
+    Command* clone() const override;
     virtual ~GetUserCommand() {}
 
     void execute() override;
 };
 
 class aliasCommand : public BuiltInCommand {
+private:
+    string name;
+    string command;
 public:
     aliasCommand(const char *cmd_line);
-
+    Command* clone() const override;
     virtual ~aliasCommand() {}
 
     void execute() override;
@@ -257,21 +262,44 @@ public:
 class unaliasCommand : public BuiltInCommand {
 public:
     unaliasCommand(const char *cmd_line);
-
+    Command* clone() const override;
     virtual ~unaliasCommand() {}
+
+    void execute() override;
+};
+
+class ChangePromptCommand : public BuiltInCommand {
+public:
+    ChangePromptCommand(const char *cmd_line);
+    Command* clone() const override;
+    virtual ~ChangePromptCommand() {}
 
     void execute() override;
 };
 
 class SmallShell {
 private:
-    // TODO: Add your data members
     SmallShell();
     char* m_plastPwd;
     JobsList* m_jobList;
+    string m_prompt;
+    bool m_proceed;
+    map <string, string> alias;
 
 public:
+    const static set<string> COMMANDS;
+    bool toProceed () const;
+    void quit ();
+
+    void setPrompt(const string str);
+    string getPrompt() const;
+
+    void addAlias (string name, string command);
+    void removeAlias (vector<string>args);
+    void printAlias();
+
     Command *CreateCommand(const char *cmd_line);
+    char* extractCommand(const char* cmd_l,string &firstWord);
 
     SmallShell(SmallShell const &) = delete; // disable copy ctor
     void operator=(SmallShell const &) = delete; // disable = operator

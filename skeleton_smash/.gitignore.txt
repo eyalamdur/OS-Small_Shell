@@ -1,0 +1,6 @@
+cmake-build-debug
+CMakeList
+Commands.o
+signals.o
+smash.o
+idea.

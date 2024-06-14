@@ -3,8 +3,6 @@
 #include <string.h>
 #include <iostream>
 #include <algorithm>
-#include <typeinfo>
-#include <typeindex>
 #include <vector>
 #include <sstream>
 #include <sys/wait.h>
@@ -106,14 +104,14 @@ SmallShell::~SmallShell() {
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
 Command *SmallShell::CreateCommand(const char *cmd_line) {
-    string cmd_s = _trim(string(cmd_line));
-    string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
-
     // Check if the command line ends with "&" for background execution
     bool backgroundExecution = _isBackgroundCommand(cmd_line);
     char* newCmdLine =  strdup(cmd_line); // Convert const char* to char*
     _removeBackgroundSign(newCmdLine);
 
+    string cmd_s = _trim(string(newCmdLine));
+    string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
+    
     if (firstWord.compare("pwd") == 0) 
         return new GetCurrDirCommand(newCmdLine);
     else if (firstWord.compare("cd") == 0) 
@@ -156,7 +154,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
 
     // Parent process
     if (pid > CHILD_ID) {
-        if(cmd->isBackgroundCommand() && typeid(*cmd) == typeid(ExternalCommand))
+        if(cmd->isBackgroundCommand() && cmd->isExternalCommand())
             getJobsList()->addJob(cmd, pid);
         else{
             // Wait for the child process to finish
@@ -229,6 +227,11 @@ string Command::getCommand() const{
 bool Command::isBackgroundCommand() const{
     return m_bgCmd;
 }
+
+bool Command::isExternalCommand() const {
+    return false; // Default implementation indicates it's not an ExternalCommand
+}
+
 
 /*---------------------------------------------------------------------------------------------------*/
 /*---------------------------------------- Built-in Commands ----------------------------------------*/
@@ -375,7 +378,10 @@ vector<string> ExternalCommand::splitCommand(const string& cmd) {
     }
     return tokens;
 }
-
+    
+bool ExternalCommand::isExternalCommand() const {
+    return true;
+}
 /*---------------------------------------------------------------------------------------------------*/
 /*------------------------------------------- Jobs Methods ------------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/

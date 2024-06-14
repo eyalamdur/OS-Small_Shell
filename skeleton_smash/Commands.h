@@ -26,6 +26,7 @@ public:
     vector<std::string> getArgs() const;
     string getCommand() const;
     bool isBackgroundCommand() const;
+    virtual bool isExternalCommand() const;
 
     //virtual void prepare();
     //virtual void cleanup();
@@ -52,6 +53,7 @@ public:
     void runSimpleCommand(const string& cmd);
     void runComplexCommand(const string& cmd);
     vector<string> splitCommand(const string& cmd);
+    bool isExternalCommand() const override;
 };
 
 class PipeCommand : public Command {

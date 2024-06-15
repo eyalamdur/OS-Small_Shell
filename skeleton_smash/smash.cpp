@@ -10,6 +10,11 @@ int main(int argc, char *argv[]) {
         perror("smash error: failed to set ctrl-C handler");
     }
 
+    // Register the SIGCHLD signal handler
+    if (signal(SIGCHLD, childProcessHandler) == SIG_ERR) {
+        perror("smash error: failed to set child process handler");
+    }
+    
     //TODO: setup sig alarm handler
 
     SmallShell &smash = SmallShell::getInstance();

@@ -173,24 +173,15 @@ public:
     void addJob(Command *cmd, int jobPid, bool isStopped = false);
 
     void printJobsList();
-
+    void printJobsListWithPid();
     void killAllJobs();
-
     void removeFinishedJobs();
-
-    JobEntry *getJobById(int jobId);
-
-    JobEntry *getJobByPid(int Pid);
-
     void removeJobById(int jobId);
-
+    JobEntry *getJobById(int jobId);
+    JobEntry *getJobByPid(int pid);
     JobEntry *getLastJob(int *lastJobId);
-
     JobEntry *getLastStoppedJob(int *jobId);
-
-    // TODO: Add extra methods or modify exisitng ones as needed
     bool isEmpty();
-    
     int getNextJobID() const;
     int getNumRunningJobs() const;
 

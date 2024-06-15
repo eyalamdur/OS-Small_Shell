@@ -72,10 +72,7 @@ void _removeBackgroundSign(char *cmd_line) {
         return;
 
     // replace the & (background sign) with space and then remove all tailing spaces.
-    cmd_line[idx] = ' ';
-
-    // truncate the command line string up to the last non-space character
-    cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
+    cmd_line[idx] = '\0';
 }
 
 string _removeBackgroundSignForString(string cmd){
@@ -157,7 +154,6 @@ char* SmallShell::extractCommand(const char* cmd_l,string &firstWord){
     string cmd_s = _trim(string(newCmdLine));
     firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
-    
     char* cmd_line = strdup(newCmdLine);
     if(m_alias->find(firstWord) != m_alias->end()){
         string command = m_alias->find(firstWord)->second,  rest = "";
@@ -175,9 +171,7 @@ char* SmallShell::extractCommand(const char* cmd_l,string &firstWord){
     return newCmdLine;
 }
 
-/**
-* Creates and returns a pointer to Command class which matches the given command line (cmd_line)
-*/
+/* Creates and returns a pointer to Command class which matches the given command line (cmd_line) */
 Command *SmallShell::CreateCommand(const char *cmd_line) {
     // Check if the command line ends with "&" for background execution
     string firstWord;
@@ -192,7 +186,7 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     else if (firstWord.compare("cd") == 0) 
         return new ChangeDirCommand(newCmdLine, getPlastPwdPtr());
     else if (firstWord.compare("quit") == 0) 
-        return new QuitCommand(newCmdLine, nullptr);
+        return new QuitCommand(newCmdLine, getJobsList());
     else if (firstWord.compare("alias") == 0)
         return new aliasCommand(newCmdLine);
     else if (firstWord.compare("unalias") == 0)
@@ -261,10 +255,8 @@ void SmallShell::printToTerminal(string line){
 /*-------------------------------------- General Command Class --------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
 /* C'tor & D'tor for Command Class*/
-Command::Command(const char *cmd_line, bool isBgCmd) : m_cmd_string(string(cmd_line)), m_bgCmd(isBgCmd){}
-
-// Virtual destructor implementation
-Command::~Command() {} 
+Command::Command(const char *cmd_line, bool isBgCmd) : m_cmd_string(string(cmd_line)), m_bgCmd(isBgCmd) {}
+Command::~Command() {}
 
 /* Method to count the number of arguments, assuming arguments are space-separated */
 int Command::getArgCount() const {
@@ -297,7 +289,7 @@ vector<string> Command::getArgs() const {
     return arguments;
 }
 
-string Command::getCommand() const{
+string Command::getCommand() const {
     return m_cmd_string;
 }
 
@@ -374,19 +366,22 @@ Command* QuitCommand::clone() const {
 }
 
 void QuitCommand::execute() {
-    SmallShell& smash = SmallShell::getInstance();
     if (getArgCount() > 1 && getArgs()[1].compare("kill") == 0){
+        // Print a message & joblist before exiting
+        if (m_jobsList != nullptr){
+            cout << "smash: smashing " << m_jobsList->getNumRunningJobs() << " jobs:" << endl;
+            m_jobsList->printJobsListWithPid();
+        }
+        else
+            cout << "smash: smashing 0 jobs:" << endl;
+            
+        // Print the list of jobs that were killed
         while(m_jobsList != nullptr && !m_jobsList->isEmpty())
             m_jobsList->killAllJobs();
         
-        // Print a message before exiting
-        cout << "smash: smashing " << m_jobsList->getNumRunningJobs() << " jobs:" << endl;
-        
-        // Print the list of jobs that were killed
-        //m_jobsList->printKilledJobs();
     }
     // End the execution of the shell
-    smash.quit();
+    SmallShell::getInstance().quit();
 }
 
 
@@ -742,9 +737,9 @@ JobsList::JobEntry* JobsList::getJobByPid(int Pid){
 }
 
 void JobsList::killAllJobs() {
-    for (auto& job : *m_jobEntries) {
+    for (auto& job : *m_jobEntries){
         kill(job.getProcessID(), SIGKILL); // Send SIGKILL signal to all jobs
-        //m_jobEntries->addKilledJob(job.getProcessID(), job.getCommand()->getCommand());
+        removeJobById(job.getJobID());
     }
 }
 
@@ -769,18 +764,33 @@ void JobsList::removeJobById(int jobId){
 
 /* Method for printint job list to terminal */
  void JobsList::printJobsList() {
-        // Sort the job entries based on job ID
-        sort(m_jobEntries->begin(), m_jobEntries->end(), [](const JobEntry& a, const JobEntry& b) {
-            return a.getJobID() < b.getJobID();
-        });
+    // Sort the job entries based on job ID
+    sort(m_jobEntries->begin(), m_jobEntries->end(), [](const JobEntry& a, const JobEntry& b) {
+        return a.getJobID() < b.getJobID();
+    });
 
-        // Print the jobs list in the required format
-        for (const auto& job : *m_jobEntries) {
-            if (!job.isStopped()) {
-                cout << "[" << job.getJobID() << "] " << job.getCommand()->getCommand() << endl;
-            }
+    // Print the jobs list in the required format
+    for (const auto& job : *m_jobEntries) {
+        if (!job.isStopped()) {
+            cout << "[" << job.getJobID() << "] " << job.getCommand()->getCommand() << endl;
         }
     }
+}
+
+/* Method for printint job list to terminal */
+ void JobsList::printJobsListWithPid() {
+    // Sort the job entries based on job ID
+    sort(m_jobEntries->begin(), m_jobEntries->end(), [](const JobEntry& a, const JobEntry& b) {
+        return a.getJobID() < b.getJobID();
+    });
+
+    // Print the jobs list in the required format
+    for (const auto& job : *m_jobEntries) {
+        if (!job.isStopped()) {
+            cout << job.getProcessID() << ": " << job.getCommand()->getCommand() << endl;
+        }
+    }
+}
 
 bool JobsList::isEmpty(){
     return m_jobEntries->empty();

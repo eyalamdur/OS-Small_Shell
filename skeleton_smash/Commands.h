@@ -8,6 +8,7 @@
 #define COMMAND_MAX_ARGS (20)
 #define CD_COMMAND_ARGS_NUM (2)
 #define DEFAULT_JOB_ID (1)
+#define DEFAULT_NUM_RUNNING_JOBS (0)
 #define CHILD_ID (0)
 #define ERROR_VALUE (-1)
 
@@ -26,6 +27,7 @@ public:
     int getArgCount() const;
     vector<string> getArgs() const;
     string getCommand() const;
+    void setCommand(string cmd);
     bool isBackgroundCommand() const;
     virtual bool isExternalCommand() const;
 
@@ -126,7 +128,8 @@ public:
 class JobsList;
 
 class QuitCommand : public BuiltInCommand {
-// TODO: Add your data members public:
+protected:
+    JobsList* m_jobsList;
 public:
     QuitCommand(const char *cmd_line, JobsList *jobs);
     Command* clone() const override;
@@ -189,10 +192,12 @@ public:
     bool isEmpty();
     
     int getNextJobID() const;
+    int getNumRunningJobs() const;
 
 protected:
     vector<JobEntry>* m_jobEntries;
     int m_nextJobID;
+    int m_numRunningJobs;
 };
 
 class JobsCommand : public BuiltInCommand {
@@ -208,7 +213,8 @@ public:
 };
 
 class KillCommand : public BuiltInCommand {
-    // TODO: Add your data members
+protected:
+    JobsList* m_jobsList;
 public:
     KillCommand(const char *cmd_line, JobsList *jobs);
     Command* clone() const override;
@@ -280,11 +286,12 @@ public:
 class SmallShell {
 private:
     SmallShell();
+
+    string m_prompt;
     char* m_plastPwd;
     JobsList* m_jobList;
-    string m_prompt;
     bool m_proceed;
-    map <string, string> alias;
+    map<string, string>* m_alias;
 
 public:
     const static set<string> COMMANDS;

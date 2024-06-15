@@ -73,7 +73,7 @@ void _removeBackgroundSign(char *cmd_line) {
 
     // replace the & (background sign) with space and then remove all tailing spaces.
     cmd_line[idx] = ' ';
-    
+
     // truncate the command line string up to the last non-space character
     cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
@@ -92,14 +92,20 @@ string _removeBackgroundSignForString(string cmd){
 /*----------------------------------------- SmallShell Class ----------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
 const set<string> SmallShell::COMMANDS = {"chprompt", "showpid", "pwd", "cd", "jobs", "fg",
-                                              "quit", "kill", "alias", "unalias"};
+"quit", "kill", "alias", "unalias", "ls", "mkdir", "cp", "mv", "rm", "touch", "cat", "grep",
+ "find", "awk", "sed", "sort", "wc", "head", "tail", "chmod", "chown", "ps", "top", "tar",
+  "gzip", "unzip", "ssh", "scp", "chmod", "chown", "echo", "basename", "dirname", "type",
+   "which", "source", "export", "history", "date", "cal", "man", "pushd", "popd", "bg",
+    "nohup", "killall", "ifconfig", "netstat", "ping", "traceroute", "nc", "telnet","lsof",
+     "less", "more", "df", "du", "free", "uname", "w", "who", "last", "uptime", "banner", "notify-send", "shutdown", "sleep"
+};
 
-SmallShell::SmallShell() : m_prompt("smash"), m_proceed(true) {
-// TODO: add your implementation
-}
+SmallShell::SmallShell() : m_prompt("smash"),  m_plastPwd(nullptr),  
+                        m_jobList(new JobsList()), m_proceed(true), m_alias(new map<string, string>){}
 
 SmallShell::~SmallShell() {
     delete m_jobList;
+    delete m_alias;
 }
 
 void SmallShell::setPrompt(const string str) {
@@ -119,16 +125,16 @@ void SmallShell::quit() {
 }
 
 void SmallShell::addAlias(string name, string command) {
-    if (alias.find(name) == alias.end() && COMMANDS.find(name) == COMMANDS.end())
-        alias[name] = command;
+    if (m_alias->find(name) == m_alias->end() && COMMANDS.find(name) == COMMANDS.end())
+        (*m_alias)[name] = command;
     else
         cout << "smash error: alias: " << name << " already exists or is a reserved command" << endl;
 }
 
 void SmallShell::removeAlias(vector<string> args) {
     for (int i = 1; i < (int)args.size(); i++){
-        if (alias.find(args[i]) != alias.end())
-            alias.erase(args[i]);
+        if (m_alias->find(args[i]) != m_alias->end())
+            m_alias->erase(args[i]);
         else{
             cout << "smash error: unalias: " << args[i] << " alias does not exist" << endl;
             break;
@@ -137,33 +143,35 @@ void SmallShell::removeAlias(vector<string> args) {
 }
 
 void SmallShell::printAlias() {
-    for (auto& pair : alias){
+    for (auto& pair : *m_alias){
         cout << pair.first << "='" << pair.second << "'" << endl;
     }
 }
 
 char* SmallShell::extractCommand(const char* cmd_l,string &firstWord){
+    // Make a modifiable copy of the command line and remove & if exists
     char* newCmdLine = strdup(cmd_l);
     _removeBackgroundSign(newCmdLine);
 
+    // Find first word (the command)
     string cmd_s = _trim(string(newCmdLine));
     firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
-    // Make a modifiable copy of the command line and remove & if exists
-    char* cmd_line = const_cast<char *>(newCmdLine);
-    if(alias.find(firstWord)!=alias.end()){
-        string command = alias.find(firstWord)->second;
-        string rest = "";
+    
+    char* cmd_line = strdup(newCmdLine);
+    if(m_alias->find(firstWord) != m_alias->end()){
+        string command = m_alias->find(firstWord)->second,  rest = "";
         
+        // Extract the rest of the command
         if (firstWord.compare(cmd_s)!=0)
             rest = cmd_s.substr(cmd_s.find_first_of(" \n"),cmd_s.find_first_of('\0'));
 
+        // build new command into newCmdLine & firstWord
         cmd_s = command + rest;
         firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
-        cmd_line = new char[cmd_s.size() + 1];
-        copy(cmd_s.begin(), cmd_s.end(), cmd_line);
-        cmd_line[cmd_s.size()] = '\0';
+        copy(cmd_s.begin(), cmd_s.end(), newCmdLine);
     }
+
     return newCmdLine;
 }
 
@@ -196,7 +204,7 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     else if (firstWord.compare("kill") == 0) 
         return new KillCommand(newCmdLine, getJobsList());
     else
-        return new ExternalCommand(cmd_line, _isBackgroundCommand(cmd_line));
+        return new ExternalCommand(newCmdLine, _isBackgroundCommand(cmd_line));
 
   return nullptr;
 }
@@ -293,6 +301,10 @@ string Command::getCommand() const{
     return m_cmd_string;
 }
 
+void Command::setCommand(string cmd){
+    m_cmd_string = cmd;
+}
+
 bool Command::isBackgroundCommand() const{
     return m_bgCmd;
 }
@@ -354,7 +366,7 @@ void ShowPidCommand::execute() {
 
 
 /* C'tor for quit command*/
-QuitCommand::QuitCommand(const char *cmd_line, JobsList *jobs = nullptr) : BuiltInCommand(cmd_line) {}
+QuitCommand::QuitCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) , m_jobsList(jobs){}
 
 /* Implement the clone method for ChangeDirCommand */
 Command* QuitCommand::clone() const {
@@ -364,8 +376,16 @@ Command* QuitCommand::clone() const {
 void QuitCommand::execute() {
     SmallShell& smash = SmallShell::getInstance();
     if (getArgCount() > 1 && getArgs()[1].compare("kill") == 0){
-        // handle killing jobs - use the kill command
+        while(m_jobsList != nullptr && !m_jobsList->isEmpty())
+            m_jobsList->killAllJobs();
+        
+        // Print a message before exiting
+        cout << "smash: smashing " << m_jobsList->getNumRunningJobs() << " jobs:" << endl;
+        
+        // Print the list of jobs that were killed
+        //m_jobsList->printKilledJobs();
     }
+    // End the execution of the shell
     smash.quit();
 }
 
@@ -404,20 +424,18 @@ Command* aliasCommand::clone() const {
 void aliasCommand::execute() {
     const regex aliasRegex("^alias [a-zA-Z0-9_]+='[^']*'$");
     SmallShell &smash = SmallShell::getInstance();
-    if (getArgCount() == 1){
-        //cout << "print aliases:" << endl;
+
+    // Print alias commands list
+    if (getArgCount() == 1)
         smash.printAlias();
-    }
+    
+    // Add new alias command
     else{
         string first = command.substr(0, command.find_first_of(" \n"));
-        //cout << "first :~" << first << "~" << endl;
-        if (regex_match(m_cmd_string, aliasRegex) &&
-        smash.COMMANDS.find(first) != smash.COMMANDS.end()){
+        if (regex_match(m_cmd_string, aliasRegex))
             smash.addAlias(name, command);
-        }
-        else{
+        else
             cout << "smash error: alias: invalid alias format" << endl;
-        }
     }
 }
 
@@ -542,7 +560,7 @@ void ForegroundCommand::execute() {
 
 
 /* Constructor implementation for KillCommand */
-KillCommand::KillCommand(const char *cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line) {}
+KillCommand::KillCommand(const char *cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), m_jobsList(jobs){}
 
 /* Implement the clone method for KillCommand */
 Command* KillCommand::clone() const {
@@ -551,7 +569,30 @@ Command* KillCommand::clone() const {
 
 /* Execute method to kill given jobID. */
 void KillCommand::execute() {
-    // TODO
+    vector<string> args = getArgs();
+
+    // Validate the number of arguments
+    if (args.size() != 3) {
+        cout << "smash error: kill: invalid arguments" << endl;
+        return;
+    }
+
+    // Get signal number and job ID from command arguments
+    int signum = stoi(args[1].substr(1));
+    int jobID = stoi(args[2]);
+
+    // Get job entry by job ID
+    JobsList::JobEntry* jobEntry = m_jobsList->getJobById(jobID);
+    if (jobEntry == nullptr) {
+        cout << "smash error: kill: job-id " << jobID << " does not exist" << endl;
+        return;
+    }
+
+    // Send the specified signal to the job
+    if (kill(jobEntry->getProcessID(), signum) == 0)
+        cout << "signal number " << signum << " was sent to pid " << jobEntry->getProcessID() << endl;
+    else
+        perror("kill error");
 }
 
 /*---------------------------------------------------------------------------------------------------*/
@@ -559,7 +600,10 @@ void KillCommand::execute() {
 /*---------------------------------------------------------------------------------------------------*/
 
 /* Constructor implementation for ExternalCommand */
-ExternalCommand::ExternalCommand(const char *cmd_line, bool isBgCmd) : Command(cmd_line, isBgCmd){}
+ExternalCommand::ExternalCommand(const char *cmd_line, bool isBgCmd) : Command(cmd_line, isBgCmd){
+    if (isBgCmd)
+        setCommand(getCommand()+"&");
+}
 
 /* Implement the clone method for KillCommand */
 Command* ExternalCommand::clone() const {
@@ -657,7 +701,7 @@ bool JobsList::JobEntry::isStopped() const{
 
 
 /* C'tor & D'tor for JobList*/
-JobsList::JobsList() : m_jobEntries(new vector<JobEntry>()), m_nextJobID(DEFAULT_JOB_ID){}
+JobsList::JobsList() : m_jobEntries(new vector<JobEntry>()), m_nextJobID(DEFAULT_JOB_ID), m_numRunningJobs(DEFAULT_NUM_RUNNING_JOBS) {}
 JobsList::~JobsList(){
     delete m_jobEntries;
 }
@@ -666,10 +710,15 @@ int JobsList::getNextJobID() const{
     return m_nextJobID;
 }
 
+int JobsList::getNumRunningJobs() const{
+    return m_numRunningJobs;
+}
+
 /* Method for adding job for job list */
 void JobsList::addJob(Command* command, int jobPid, bool isStopped) {
     Command* cmd = command->clone(); // virtual clone method
     m_jobEntries->emplace_back(m_nextJobID++, jobPid, command, isStopped);
+    m_numRunningJobs++;
 }
 
 JobsList::JobEntry* JobsList::getJobById(int jobId){
@@ -692,8 +741,15 @@ JobsList::JobEntry* JobsList::getJobByPid(int Pid){
     return nullptr; // Return nullptr if no job with the specified process ID is found
 }
 
+void JobsList::killAllJobs() {
+    for (auto& job : *m_jobEntries) {
+        kill(job.getProcessID(), SIGKILL); // Send SIGKILL signal to all jobs
+        //m_jobEntries->addKilledJob(job.getProcessID(), job.getCommand()->getCommand());
+    }
+}
+
+// Rearrange the jobs oreder and returns an iterator pointing to the new "end" of the range.
 void JobsList::removeJobById(int jobId){
-    // Rearrange the jobs oreder and returns an iterator pointing to the new "end" of the range.
     auto it = remove_if(m_jobEntries->begin(), m_jobEntries->end(), [jobId](const JobEntry& job){
         return job.getJobID() == jobId;
     });
@@ -701,6 +757,7 @@ void JobsList::removeJobById(int jobId){
     // Remove given job.
     if (it != m_jobEntries->end()) {
         m_jobEntries->erase(it, m_jobEntries->end());
+        m_numRunningJobs--;
 
         // Adjust the next job ID if needed
         if (jobId == m_nextJobID - 1)

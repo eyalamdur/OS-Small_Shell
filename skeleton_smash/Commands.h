@@ -93,8 +93,6 @@ public:
 
     void execute() override;
 
-    void writeOutput (string &file, string &output, bool toAppend) const;
-
 };
 
 class ChangeDirCommand : public BuiltInCommand {

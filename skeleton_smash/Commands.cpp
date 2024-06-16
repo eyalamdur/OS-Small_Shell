@@ -205,6 +205,10 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 
 void SmallShell::executeCommand(const char *cmd_line) {
     Command* cmd = CreateCommand(cmd_line);
+
+    // Remove all finshed background jobs.
+    m_jobList->removeFinishedJobs();
+
     // Invalid Command
     if (cmd == nullptr){
         printToTerminal("Unknown Command");
@@ -716,6 +720,9 @@ int JobsList::getNumRunningJobs() const{
 
 /* Method for adding job for job list */
 void JobsList::addJob(Command* command, int jobPid, bool isStopped) {
+    // Remove all finshed background jobs.
+    removeFinishedJobs();
+
     Command* cmd = command->clone(); // virtual clone method
     m_jobEntries->emplace_back(m_nextJobID++, jobPid, command, isStopped);
     m_numRunningJobs++;
@@ -748,7 +755,7 @@ void JobsList::killAllJobs() {
     }
 }
 
-// Rearrange the jobs oreder and returns an iterator pointing to the new "end" of the range.
+/* Rearrange the jobs oreder and returns an iterator pointing to the new "end" of the range. */
 void JobsList::removeJobById(int jobId){
     auto it = remove_if(m_jobEntries->begin(), m_jobEntries->end(), [jobId](const JobEntry& job){
         return job.getJobID() == jobId;
@@ -767,8 +774,40 @@ void JobsList::removeJobById(int jobId){
 
 }
 
+
+void JobsList::removeFinishedJobs(){
+    int status, highestJobId = 0;
+    // Iterate through the list of background jobs in reverse order to safely erase elements
+    for (auto it = m_jobEntries->begin(); it != m_jobEntries->end(); ) {
+        pid_t result = waitpid(it->getProcessID(), &status, WNOHANG);
+
+        // The child process of this job has terminated
+        if (result == it->getProcessID()) { 
+            // Update the status of the job to stopped & erase it from the list.
+            it->setStopped(true);
+            it = m_jobEntries->erase(it);
+        } 
+        else{
+            // Update the highest job ID
+            if (it->getJobID() > highestJobId) 
+                highestJobId = it->getJobID();
+
+            // Move to the next job
+            ++it;
+        }
+    }
+    // Update the next job ID based on the highest job ID
+    m_nextJobID = highestJobId + 1;
+    // Update the number of running jobs
+    m_numRunningJobs = m_jobEntries->size();
+}
+
+
 /* Method for printint job list to terminal */
  void JobsList::printJobsList() {
+    // Remove all finshed background jobs.
+    removeFinishedJobs();
+
     // Sort the job entries based on job ID
     sort(m_jobEntries->begin(), m_jobEntries->end(), [](const JobEntry& a, const JobEntry& b) {
         return a.getJobID() < b.getJobID();
@@ -784,6 +823,9 @@ void JobsList::removeJobById(int jobId){
 
 /* Method for printint job list to terminal */
  void JobsList::printJobsListWithPid() {
+    // Remove all finshed background jobs.
+    removeFinishedJobs();
+
     // Sort the job entries based on job ID
     sort(m_jobEntries->begin(), m_jobEntries->end(), [](const JobEntry& a, const JobEntry& b) {
         return a.getJobID() < b.getJobID();

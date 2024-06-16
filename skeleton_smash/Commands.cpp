@@ -835,9 +835,8 @@ void RedirectionCommand::execute() {
     // son processes
     if (pid == 0){
         int outputFile;
-        if (isDouble){
+        if (isDouble)
             outputFile = open (file, O_WRONLY | O_CREAT | O_APPEND, 0644);
-        }
         else {
             outputFile = open (file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
         }

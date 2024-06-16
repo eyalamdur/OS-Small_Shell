@@ -681,10 +681,11 @@ Command* ListDirCommand::clone() const {
 
 /* Execute method to get and print theListDirCommand */
 void ListDirCommand::execute() {
-    if (getArgCount() > 2) {
+    if (getArgCount() > LIST_DIR_COMMAND_ARGS_NUM) {
         cout << "smash error: listdir: too many arguments" << endl;
         return;
     }
+
     vector<string> args = getArgs();
     const char* directoryPath = (getArgCount() == 2) ? args[1].c_str() : ".";
 
@@ -696,25 +697,42 @@ void ListDirCommand::execute() {
 
     struct dirent *entry;
     struct stat fileStat;
-    char* buffer;
-    while ((entry = readdir(dir)) != NULL) {
-        string fullPath = std::string(directoryPath) + "/" + entry->d_name; // Construct the full path
+    size_t buffer_size = DEFAULT_BUFFER_SIZE;
+    char buffer[buffer_size];
+    vector<string> entries;
+
+    // Rearrange order to be alphabetic
+    while ((entry = readdir(dir)) != NULL) 
+        entries.push_back(entry->d_name);
+
+    // Sort the directory entries alphabetically
+    sort(entries.begin(), entries.end());
+
+    for (const auto& entryName : entries) {
+        string fullPath = string(directoryPath) + "/" + entryName;
         if (lstat(fullPath.c_str(), &fileStat) != 0) {
             perror("lstat");
             continue;
         }
-        
+
+        // Discover type of file/dir/link
         if (S_ISREG(fileStat.st_mode))
-            cout << "file: " << entry->d_name << endl;
-        else if (S_ISDIR(fileStat.st_mode))
-            cout << "directory: " << entry->d_name << endl;
-        else if (S_ISLNK(fileStat.st_mode)){
-            readlink(entry->d_name, buffer, 256);
-            cout << "link: " << entry->d_name << " -> " << buffer << endl;
+            cout << "file: " << entryName << endl;
+        else if (S_ISDIR(fileStat.st_mode)) 
+            cout << "directory: " << entryName << endl;
+        else if (S_ISLNK(fileStat.st_mode)) {
+            ssize_t len = readlink(fullPath.c_str(), buffer, buffer_size - 1);
+            if (len != -1) {
+                buffer[len] = '\0';
+                cout << "link: " << entryName << " -> " << buffer << endl;
+            } 
+            else
+                perror("readlink");
         }
     }
 
     closedir(dir);
+
 }
 
 /*---------------------------------------------------------------------------------------------------*/

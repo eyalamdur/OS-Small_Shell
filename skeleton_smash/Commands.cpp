@@ -837,9 +837,8 @@ void RedirectionCommand::execute() {
         int outputFile;
         if (isDouble)
             outputFile = open (file, O_WRONLY | O_CREAT | O_APPEND, 0644);
-        else {
+        else 
             outputFile = open (file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        }
         if (outputFile < 0){
             cout << "failed to open" << endl;
             exit(0);

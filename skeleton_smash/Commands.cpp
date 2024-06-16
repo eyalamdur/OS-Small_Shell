@@ -9,6 +9,8 @@
 #include <iomanip>
 #include "Commands.h"
 #include <regex>
+#include <dirent.h>
+#include <sys/stat.h>
 #include <fstream>
 #include <fcntl.h>
 
@@ -201,6 +203,8 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new ForegroundCommand(cmd_line, newCmdLine, getJobsList());
     else if (firstWord.compare("kill") == 0) 
         return new KillCommand(cmd_line, newCmdLine, getJobsList());
+    else if (firstWord.compare("listdir") == 0) 
+        return new ListDirCommand(cmd_line, newCmdLine);
     else
         return new ExternalCommand(cmd_line, newCmdLine, _isBackgroundCommand(cmd_line));
 
@@ -613,12 +617,12 @@ ExternalCommand::ExternalCommand(const char* origin_cmd_line, const char *cmd_li
         setCommand(getCommand()+"&");
 }
 
-/* Implement the clone method for KillCommand */
+/* Implement the clone method for ExternalCommand */
 Command* ExternalCommand::clone() const {
     return new ExternalCommand(*this);
 }
 
-/* Execute method to get and print the current working directory. */
+/* Execute method to an external command. */
 void ExternalCommand::execute() {
     // Check if the command line contains special characters like '*' or '?'
         string cmd = getCommand();
@@ -668,6 +672,73 @@ vector<string> ExternalCommand::splitCommand(const string& cmd) {
 bool ExternalCommand::isExternalCommand() const {
     return true;
 }
+
+/*---------------------------------------------------------------------------------------------------*/
+/*---------------------------------------- Special Commands -----------------------------------------*/
+/*---------------------------------------------------------------------------------------------------*/
+ListDirCommand::ListDirCommand(const char* origin_cmd_line, const char *cmd_line) : BuiltInCommand(origin_cmd_line, cmd_line) {}
+
+/* Implement the clone method for ListDirCommand */
+Command* ListDirCommand::clone() const {
+    return new ListDirCommand(*this);
+}
+
+/* Execute method to get and print theListDirCommand */
+void ListDirCommand::execute() {
+    if (getArgCount() > LIST_DIR_COMMAND_ARGS_NUM) {
+        cout << "smash error: listdir: too many arguments" << endl;
+        return;
+    }
+
+    vector<string> args = getArgs();
+    const char* directoryPath = (getArgCount() == 2) ? args[1].c_str() : ".";
+
+    DIR* dir = opendir(directoryPath);
+    if (!dir) {
+        perror("opendir");
+        return;
+    }
+
+    struct dirent *entry;
+    struct stat fileStat;
+    size_t buffer_size = DEFAULT_BUFFER_SIZE;
+    char buffer[buffer_size];
+    vector<string> entries;
+
+    // Rearrange order to be alphabetic
+    while ((entry = readdir(dir)) != NULL) 
+        entries.push_back(entry->d_name);
+
+    // Sort the directory entries alphabetically
+    sort(entries.begin(), entries.end());
+
+    for (const auto& entryName : entries) {
+        string fullPath = string(directoryPath) + "/" + entryName;
+        if (lstat(fullPath.c_str(), &fileStat) != 0) {
+            perror("lstat");
+            continue;
+        }
+
+        // Discover type of file/dir/link
+        if (S_ISREG(fileStat.st_mode))
+            cout << "file: " << entryName << endl;
+        else if (S_ISDIR(fileStat.st_mode)) 
+            cout << "directory: " << entryName << endl;
+        else if (S_ISLNK(fileStat.st_mode)) {
+            ssize_t len = readlink(fullPath.c_str(), buffer, buffer_size - 1);
+            if (len != -1) {
+                buffer[len] = '\0';
+                cout << "link: " << entryName << " -> " << buffer << endl;
+            } 
+            else
+                perror("readlink");
+        }
+    }
+
+    closedir(dir);
+
+}
+
 /*---------------------------------------------------------------------------------------------------*/
 /*------------------------------------------- Jobs Methods ------------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
@@ -778,7 +849,6 @@ void JobsList::removeJobById(int jobId){
 
 }
 
-
 void JobsList::removeFinishedJobs(){
     int status, highestJobId = 0;
     // Iterate through the list of background jobs in reverse order to safely erase elements
@@ -805,7 +875,6 @@ void JobsList::removeFinishedJobs(){
     // Update the number of running jobs
     m_numRunningJobs = m_jobEntries->size();
 }
-
 
 /* Method for printint job list to terminal */
  void JobsList::printJobsList() {

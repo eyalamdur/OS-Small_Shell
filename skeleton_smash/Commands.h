@@ -7,7 +7,9 @@
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 #define CD_COMMAND_ARGS_NUM (2)
+#define LIST_DIR_COMMAND_ARGS_NUM (2)
 #define DEFAULT_JOB_ID (1)
+#define DEFAULT_BUFFER_SIZE (256)
 #define DEFAULT_NUM_RUNNING_JOBS (0)
 #define CHILD_ID (0)
 #define ERROR_VALUE (-1)
@@ -231,7 +233,7 @@ public:
 
 class ListDirCommand : public BuiltInCommand {
 public:
-    ListDirCommand(const char *cmd_line);
+    ListDirCommand(const char* origin_cmd_line, const char *cmd_line);
     Command* clone() const override;
     virtual ~ListDirCommand() {}
 

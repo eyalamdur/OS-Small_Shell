@@ -6,12 +6,14 @@
 using namespace std;
 
 void ctrlCHandler(int sig_num) {
-    // TODO: Add your implementation
-}
-
-void childProcessHandler(int signum) {
-    // Handle the SIGCHLD signal here
-    // Extract the job ID
-    // Handle the termination of the child process with the given job ID
-    //getJobsList()->removeJobById(jobID);
+    cout << "smash: got ctrl-C" << endl;
+    
+    SmallShell &smash = SmallShell::getInstance();
+    JobsList* jobsList = smash.getJobsList();
+    
+    JobsList::JobEntry* currentJob = jobsList->getJobByPid(getpid());
+    if (currentJob != nullptr && currentJob->getProcessID() != getpid()) {
+        kill(currentJob->getProcessID(), SIGKILL);
+        cout << "smash: process " << currentJob->getProcessID() << " was killed." << endl;
+    }
 }

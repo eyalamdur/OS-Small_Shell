@@ -9,6 +9,8 @@
 #include <iomanip>
 #include "Commands.h"
 #include <regex>
+#include <dirent.h>
+#include <sys/stat.h>
 
 const string WHITESPACE = " \n\r\t\f\v";
 
@@ -197,6 +199,8 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new ForegroundCommand(cmd_line, newCmdLine, getJobsList());
     else if (firstWord.compare("kill") == 0) 
         return new KillCommand(cmd_line, newCmdLine, getJobsList());
+    else if (firstWord.compare("listdir") == 0) 
+        return new ListDirCommand(cmd_line, newCmdLine);
     else
         return new ExternalCommand(cmd_line, newCmdLine, _isBackgroundCommand(cmd_line));
 
@@ -609,12 +613,12 @@ ExternalCommand::ExternalCommand(const char* origin_cmd_line, const char *cmd_li
         setCommand(getCommand()+"&");
 }
 
-/* Implement the clone method for KillCommand */
+/* Implement the clone method for ExternalCommand */
 Command* ExternalCommand::clone() const {
     return new ExternalCommand(*this);
 }
 
-/* Execute method to get and print the current working directory. */
+/* Execute method to an external command. */
 void ExternalCommand::execute() {
     // Check if the command line contains special characters like '*' or '?'
         string cmd = getCommand();
@@ -664,6 +668,55 @@ vector<string> ExternalCommand::splitCommand(const string& cmd) {
 bool ExternalCommand::isExternalCommand() const {
     return true;
 }
+
+/*---------------------------------------------------------------------------------------------------*/
+/*---------------------------------------- Special Commands -----------------------------------------*/
+/*---------------------------------------------------------------------------------------------------*/
+ListDirCommand::ListDirCommand(const char* origin_cmd_line, const char *cmd_line) : BuiltInCommand(origin_cmd_line, cmd_line) {}
+
+/* Implement the clone method for ListDirCommand */
+Command* ListDirCommand::clone() const {
+    return new ListDirCommand(*this);
+}
+
+/* Execute method to get and print theListDirCommand */
+void ListDirCommand::execute() {
+    if (getArgCount() > 2) {
+        cout << "smash error: listdir: too many arguments" << endl;
+        return;
+    }
+    vector<string> args = getArgs();
+    const char* directoryPath = (getArgCount() == 2) ? args[1].c_str() : ".";
+
+    DIR* dir = opendir(directoryPath);
+    if (!dir) {
+        perror("opendir");
+        return;
+    }
+
+    struct dirent *entry;
+    struct stat fileStat;
+    char* buffer;
+    while ((entry = readdir(dir)) != NULL) {
+        string fullPath = std::string(directoryPath) + "/" + entry->d_name; // Construct the full path
+        if (lstat(fullPath.c_str(), &fileStat) != 0) {
+            perror("lstat");
+            continue;
+        }
+        
+        if (S_ISREG(fileStat.st_mode))
+            cout << "file: " << entry->d_name << endl;
+        else if (S_ISDIR(fileStat.st_mode))
+            cout << "directory: " << entry->d_name << endl;
+        else if (S_ISLNK(fileStat.st_mode)){
+            readlink(entry->d_name, buffer, 256);
+            cout << "link: " << entry->d_name << " -> " << buffer << endl;
+        }
+    }
+
+    closedir(dir);
+}
+
 /*---------------------------------------------------------------------------------------------------*/
 /*------------------------------------------- Jobs Methods ------------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
@@ -774,7 +827,6 @@ void JobsList::removeJobById(int jobId){
 
 }
 
-
 void JobsList::removeFinishedJobs(){
     int status, highestJobId = 0;
     // Iterate through the list of background jobs in reverse order to safely erase elements
@@ -801,7 +853,6 @@ void JobsList::removeFinishedJobs(){
     // Update the number of running jobs
     m_numRunningJobs = m_jobEntries->size();
 }
-
 
 /* Method for printint job list to terminal */
  void JobsList::printJobsList() {

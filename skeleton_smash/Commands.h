@@ -230,7 +230,7 @@ public:
 
 class ListDirCommand : public BuiltInCommand {
 public:
-    ListDirCommand(const char *cmd_line);
+    ListDirCommand(const char* origin_cmd_line, const char *cmd_line);
     Command* clone() const override;
     virtual ~ListDirCommand() {}
 

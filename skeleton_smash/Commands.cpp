@@ -178,27 +178,27 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     char* newCmdLine = extractCommand(cmd_line, firstWord);
 
     if (firstWord.compare("pwd") == 0) 
-        return new GetCurrDirCommand(newCmdLine);
+        return new GetCurrDirCommand(cmd_line, newCmdLine);
     else if (firstWord.compare("chprompt") == 0)
-        return new ChangePromptCommand(newCmdLine);
+        return new ChangePromptCommand(cmd_line, newCmdLine);
     else if (firstWord.compare("showpid") == 0)
-        return new ShowPidCommand(newCmdLine);
+        return new ShowPidCommand(cmd_line, newCmdLine);
     else if (firstWord.compare("cd") == 0) 
-        return new ChangeDirCommand(newCmdLine, getPlastPwdPtr());
+        return new ChangeDirCommand(cmd_line, newCmdLine, getPlastPwdPtr());
     else if (firstWord.compare("quit") == 0) 
-        return new QuitCommand(newCmdLine, getJobsList());
+        return new QuitCommand(cmd_line, newCmdLine, getJobsList());
     else if (firstWord.compare("alias") == 0)
-        return new aliasCommand(newCmdLine);
+        return new aliasCommand(cmd_line, newCmdLine);
     else if (firstWord.compare("unalias") == 0)
-        return new unaliasCommand(newCmdLine);
+        return new unaliasCommand(cmd_line, newCmdLine);
     else if (firstWord.compare("jobs") == 0) 
-        return new JobsCommand(newCmdLine, getJobsList());
+        return new JobsCommand(cmd_line, newCmdLine, getJobsList());
     else if (firstWord.compare("fg") == 0) 
-        return new ForegroundCommand(newCmdLine, getJobsList());
+        return new ForegroundCommand(cmd_line, newCmdLine, getJobsList());
     else if (firstWord.compare("kill") == 0) 
-        return new KillCommand(newCmdLine, getJobsList());
+        return new KillCommand(cmd_line, newCmdLine, getJobsList());
     else
-        return new ExternalCommand(newCmdLine, _isBackgroundCommand(cmd_line));
+        return new ExternalCommand(cmd_line, newCmdLine, _isBackgroundCommand(cmd_line));
 
   return nullptr;
 }
@@ -255,7 +255,8 @@ void SmallShell::printToTerminal(string line){
 /*-------------------------------------- General Command Class --------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
 /* C'tor & D'tor for Command Class*/
-Command::Command(const char *cmd_line, bool isBgCmd) : m_cmd_string(string(cmd_line)), m_bgCmd(isBgCmd) {}
+Command::Command(const char *origin_cmd_line, const char *cmd_line, bool isBgCmd) : m_origin_cmd_string(string(origin_cmd_line)),
+ m_cmd_string(string(cmd_line)), m_bgCmd(isBgCmd) {}
 Command::~Command() {}
 
 /* Method to count the number of arguments, assuming arguments are space-separated */
@@ -293,6 +294,10 @@ string Command::getCommand() const {
     return m_cmd_string;
 }
 
+string Command::getOriginalCommand() const {
+    return m_origin_cmd_string;
+}
+
 void Command::setCommand(string cmd){
     m_cmd_string = cmd;
 }
@@ -310,10 +315,10 @@ bool Command::isExternalCommand() const {
 /*---------------------------------------- Built-in Commands ----------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
 /* C'tor for BuiltInCommand Class*/
-BuiltInCommand::BuiltInCommand(const char *cmd_line) : Command(cmd_line){}
+BuiltInCommand::BuiltInCommand(const char* origin_cmd_line, const char *cmd_line) : Command(origin_cmd_line, cmd_line){}
 
 /* Constructor implementation for GetCurrDirCommand */
-GetCurrDirCommand::GetCurrDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
+GetCurrDirCommand::GetCurrDirCommand(const char* origin_cmd_line, const char *cmd_line) : BuiltInCommand(origin_cmd_line, cmd_line) {}
 
 /* Implement the clone method for GetCurrDirCommand */
 Command* GetCurrDirCommand::clone() const {
@@ -329,7 +334,7 @@ void GetCurrDirCommand::execute() {
 
 
 /* C'tor for changePromptCommand*/
-ChangePromptCommand::ChangePromptCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
+ChangePromptCommand::ChangePromptCommand(const char* origin_cmd_line, const char *cmd_line) : BuiltInCommand(origin_cmd_line, cmd_line) {}
 
 /* Implement the clone method for ChangeDirCommand */
 Command* ChangePromptCommand::clone() const {
@@ -344,7 +349,7 @@ void ChangePromptCommand::execute() {
 
 
 /* C'tor for ShowPidCommand Class*/
-ShowPidCommand::ShowPidCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
+ShowPidCommand::ShowPidCommand(const char* origin_cmd_line, const char *cmd_line) : BuiltInCommand(origin_cmd_line, cmd_line) {}
 
 /* Implement the clone method for ChangeDirCommand */
 Command* ShowPidCommand::clone() const {
@@ -358,7 +363,7 @@ void ShowPidCommand::execute() {
 
 
 /* C'tor for quit command*/
-QuitCommand::QuitCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) , m_jobsList(jobs){}
+QuitCommand::QuitCommand(const char* origin_cmd_line, const char *cmd_line, JobsList *jobs) : BuiltInCommand(origin_cmd_line, cmd_line) , m_jobsList(jobs){}
 
 /* Implement the clone method for ChangeDirCommand */
 Command* QuitCommand::clone() const {
@@ -386,7 +391,7 @@ void QuitCommand::execute() {
 
 
 /* C'tor for aliasCommamd class */
-aliasCommand::aliasCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {
+aliasCommand::aliasCommand(const char* origin_cmd_line, const char *cmd_line) : BuiltInCommand(origin_cmd_line, cmd_line) {
     int space = 0;
     for (; space < m_cmd_string.length() && m_cmd_string[space]!=' ' ; space++) {}
     int equals = space;
@@ -436,7 +441,7 @@ void aliasCommand::execute() {
 
 
 /* C'tor for unaliasCommand class. */
-unaliasCommand::unaliasCommand(const char *cmd_line) : BuiltInCommand(cmd_line){}
+unaliasCommand::unaliasCommand(const char* origin_cmd_line, const char *cmd_line) : BuiltInCommand(origin_cmd_line, cmd_line){}
 
 /* Implement the clone method for ChangeDirCommand */
 Command* unaliasCommand::clone() const {
@@ -454,7 +459,7 @@ void unaliasCommand::execute() {
 
 
 /* Constructor implementation for ChangeDirCommand */
-ChangeDirCommand::ChangeDirCommand(const char *cmd_line, char **plastPwd) : BuiltInCommand(cmd_line), plastPwd(plastPwd) {}
+ChangeDirCommand::ChangeDirCommand(const char* origin_cmd_line, const char *cmd_line, char **plastPwd) : BuiltInCommand(origin_cmd_line, cmd_line), plastPwd(plastPwd) {}
 
 /* Implement the clone method for ChangeDirCommand */
 Command* ChangeDirCommand::clone() const {
@@ -493,7 +498,7 @@ void ChangeDirCommand::execute() {
 }
 
 
-JobsCommand::JobsCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), m_jobsList(jobs) {}
+JobsCommand::JobsCommand(const char* origin_cmd_line, const char* cmd_line, JobsList* jobs) : BuiltInCommand(origin_cmd_line, cmd_line), m_jobsList(jobs) {}
 
 /* Implement the clone method for JobsCommand */
 Command* JobsCommand::clone() const {
@@ -505,7 +510,7 @@ void JobsCommand::execute() {
 }
 
 
-ForegroundCommand::ForegroundCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), m_jobsList(jobs){}
+ForegroundCommand::ForegroundCommand(const char* origin_cmd_line, const char* cmd_line, JobsList* jobs) : BuiltInCommand(origin_cmd_line, cmd_line), m_jobsList(jobs){}
 
 /* Implement the clone method for JobsCommand */
 Command* ForegroundCommand::clone() const {
@@ -555,7 +560,7 @@ void ForegroundCommand::execute() {
 
 
 /* Constructor implementation for KillCommand */
-KillCommand::KillCommand(const char *cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), m_jobsList(jobs){}
+KillCommand::KillCommand(const char* origin_cmd_line, const char *cmd_line, JobsList* jobs) : BuiltInCommand(origin_cmd_line, cmd_line), m_jobsList(jobs){}
 
 /* Implement the clone method for KillCommand */
 Command* KillCommand::clone() const {
@@ -595,7 +600,7 @@ void KillCommand::execute() {
 /*---------------------------------------------------------------------------------------------------*/
 
 /* Constructor implementation for ExternalCommand */
-ExternalCommand::ExternalCommand(const char *cmd_line, bool isBgCmd) : Command(cmd_line, isBgCmd){
+ExternalCommand::ExternalCommand(const char* origin_cmd_line, const char *cmd_line, bool isBgCmd) : Command(origin_cmd_line, cmd_line, isBgCmd){
     if (isBgCmd)
         setCommand(getCommand()+"&");
 }
@@ -772,7 +777,7 @@ void JobsList::removeJobById(int jobId){
     // Print the jobs list in the required format
     for (const auto& job : *m_jobEntries) {
         if (!job.isStopped()) {
-            cout << "[" << job.getJobID() << "] " << job.getCommand()->getCommand() << endl;
+            cout << "[" << job.getJobID() << "] " << job.getCommand()->getOriginalCommand() << endl;
         }
     }
 }
@@ -787,7 +792,7 @@ void JobsList::removeJobById(int jobId){
     // Print the jobs list in the required format
     for (const auto& job : *m_jobEntries) {
         if (!job.isStopped()) {
-            cout << job.getProcessID() << ": " << job.getCommand()->getCommand() << endl;
+            cout << job.getProcessID() << ": " << job.getCommand()->getOriginalCommand() << endl;
         }
     }
 }

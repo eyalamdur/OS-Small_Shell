@@ -17,7 +17,7 @@ using namespace std;
 class Command {
 // TODO: Add your data members
 public:
-    Command(const char *cmd_line, bool isBgCmd = false);
+    Command(const char *origin_cmd_line, const char *cmd_line, bool isBgCmd = false);
     virtual ~Command();
 
     virtual void execute() = 0;
@@ -27,6 +27,7 @@ public:
     int getArgCount() const;
     vector<string> getArgs() const;
     string getCommand() const;
+    string getOriginalCommand() const;
     void setCommand(string cmd);
     bool isBackgroundCommand() const;
     virtual bool isExternalCommand() const;
@@ -35,20 +36,21 @@ public:
     //virtual void cleanup();
     // TODO: Add your extra methods if needed
 protected:
+    string m_origin_cmd_string;
     string m_cmd_string;
     bool m_bgCmd;    
 };
 
 class BuiltInCommand : public Command {
 public:
-    BuiltInCommand(const char *cmd_line);
+    BuiltInCommand(const char* origin_cmd_line, const char *cmd_line);
     virtual ~BuiltInCommand() {}
 
 };
 
 class ExternalCommand : public Command {
 public:
-    ExternalCommand(const char *cmd_line, bool isBgCmd);
+    ExternalCommand(const char* origin_cmd_line, const char *cmd_line, bool isBgCmd);
     Command* clone() const override;
     virtual ~ExternalCommand() {}
 
@@ -94,7 +96,7 @@ public:
 
 class ChangeDirCommand : public BuiltInCommand {
 public:
-    ChangeDirCommand(const char *cmd_line, char **plastPwd);
+    ChangeDirCommand(const char* origin_cmd_line, const char *cmd_line, char **plastPwd);
     Command* clone() const override;
 
     virtual ~ChangeDirCommand() {}
@@ -107,7 +109,7 @@ protected:
 
 class GetCurrDirCommand : public BuiltInCommand {
 public:
-    GetCurrDirCommand(const char *cmd_line);
+    GetCurrDirCommand(const char* origin_cmd_line, const char *cmd_line);
     Command* clone() const override;
 
     virtual ~GetCurrDirCommand() {}
@@ -117,7 +119,7 @@ public:
 
 class ShowPidCommand : public BuiltInCommand {
 public:
-    ShowPidCommand(const char *cmd_line);
+    ShowPidCommand(const char* origin_cmd_line, const char *cmd_line);
     Command* clone() const override;
 
     virtual ~ShowPidCommand() {}
@@ -131,7 +133,7 @@ class QuitCommand : public BuiltInCommand {
 protected:
     JobsList* m_jobsList;
 public:
-    QuitCommand(const char *cmd_line, JobsList *jobs);
+    QuitCommand(const char* origin_cmd_line, const char *cmd_line, JobsList *jobs);
     Command* clone() const override;
 
     virtual ~QuitCommand() {}
@@ -196,7 +198,7 @@ protected:
     JobsList* m_jobsList;
 
 public:
-    JobsCommand(const char *cmd_line, JobsList *jobs);
+    JobsCommand(const char* origin_cmd_line, const char *cmd_line, JobsList *jobs);
     Command* clone() const override;
     virtual ~JobsCommand() {}
 
@@ -207,7 +209,7 @@ class KillCommand : public BuiltInCommand {
 protected:
     JobsList* m_jobsList;
 public:
-    KillCommand(const char *cmd_line, JobsList *jobs);
+    KillCommand(const char* origin_cmd_line, const char *cmd_line, JobsList *jobs);
     Command* clone() const override;
     virtual ~KillCommand() {}
 
@@ -219,7 +221,7 @@ protected:
     JobsList* m_jobsList;
 
 public:
-    ForegroundCommand(const char *cmd_line, JobsList *jobs);
+    ForegroundCommand(const char* origin_cmd_line, const char *cmd_line, JobsList *jobs);
     Command* clone() const override;
     virtual ~ForegroundCommand() {}
 
@@ -249,7 +251,7 @@ private:
     string name;
     string command;
 public:
-    aliasCommand(const char *cmd_line);
+    aliasCommand(const char* origin_cmd_line, const char *cmd_line);
     Command* clone() const override;
     virtual ~aliasCommand() {}
 
@@ -258,7 +260,7 @@ public:
 
 class unaliasCommand : public BuiltInCommand {
 public:
-    unaliasCommand(const char *cmd_line);
+    unaliasCommand(const char* origin_cmd_line, const char *cmd_line);
     Command* clone() const override;
     virtual ~unaliasCommand() {}
 
@@ -267,7 +269,7 @@ public:
 
 class ChangePromptCommand : public BuiltInCommand {
 public:
-    ChangePromptCommand(const char *cmd_line);
+    ChangePromptCommand(const char* origin_cmd_line, const char *cmd_line);
     Command* clone() const override;
     virtual ~ChangePromptCommand() {}
 

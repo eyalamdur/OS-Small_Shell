@@ -11,6 +11,9 @@
 #include <regex>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <fstream>
+#include <fcntl.h>
+
 
 const string WHITESPACE = " \n\r\t\f\v";
 
@@ -175,11 +178,12 @@ char* SmallShell::extractCommand(const char* cmd_l,string &firstWord){
 
 /* Creates and returns a pointer to Command class which matches the given command line (cmd_line) */
 Command *SmallShell::CreateCommand(const char *cmd_line) {
-    // Check if the command line ends with "&" for background execution
     string firstWord;
     char* newCmdLine = extractCommand(cmd_line, firstWord);
 
-    if (firstWord.compare("pwd") == 0) 
+    if (string(newCmdLine).find('>') != string::npos)
+        return new RedirectionCommand(cmd_line, newCmdLine);
+    else if (firstWord.compare("pwd") == 0)
         return new GetCurrDirCommand(cmd_line, newCmdLine);
     else if (firstWord.compare("chprompt") == 0)
         return new ChangePromptCommand(cmd_line, newCmdLine);
@@ -910,4 +914,62 @@ void JobsList::removeFinishedJobs(){
 
 bool JobsList::isEmpty(){
     return m_jobEntries->empty();
+}
+
+
+/*---------------------------------------------------------------------------------------------------*/
+/*------------------------------------------- Special Commands --------------------------------------*/
+/*---------------------------------------------------------------------------------------------------*/
+
+RedirectionCommand::RedirectionCommand(const char *origin_cmd_line, const char *cmd_line) :
+Command (origin_cmd_line, cmd_line) {}
+
+Command *RedirectionCommand::clone() const {
+    return new RedirectionCommand(*this);
+}
+
+void RedirectionCommand::execute() {
+    // breaking the cmd_line to a command and filename
+    SmallShell &smash = SmallShell::getInstance();
+    int index = m_cmd_string.find_first_of('>');
+    bool isDouble = (m_cmd_string[index+1] == '>');
+    const char* command = strdup(m_cmd_string.substr(0,index).c_str());
+    const char* file = strdup(m_cmd_string.substr(index+1,m_cmd_string.size()-index).c_str());
+    // in case using '>>' instead of '>'
+    if (isDouble)
+        file = m_cmd_string.substr(index+2,m_cmd_string.size()-index).c_str();
+    cout << "command: " << command << endl;
+    // forking the process, the son implement the command and writing the output while the parent wait
+    pid_t pid = fork();
+    if (pid < 0)
+        cout << "failed to fork" << endl;
+    // son processes
+    if (pid == 0){
+        int outputFile;
+        if (isDouble)
+            outputFile = open (file, O_WRONLY | O_CREAT | O_APPEND, 0644);
+        else 
+            outputFile = open (file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (outputFile < 0){
+            cout << "failed to open" << endl;
+            exit(0);
+        }
+        if (dup2(outputFile, STDOUT_FILENO) < 0){
+            cout << "dup2 fail" << endl;
+            close(outputFile);
+            exit(0);
+        }
+        smash.executeCommand(command);
+        close(outputFile);
+        //free the allocated memory
+        free(const_cast<char*>(command));
+        exit(1);
+    }
+    //parent processes
+    else{
+        int status;
+        waitpid(pid, &status, 0);
+        //free the allocated memory
+        free(const_cast<char*>(command));
+    }
 }

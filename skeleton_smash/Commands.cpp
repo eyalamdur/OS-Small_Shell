@@ -9,6 +9,9 @@
 #include <iomanip>
 #include "Commands.h"
 #include <regex>
+#include <fstream>
+#include <fcntl.h>
+
 
 const string WHITESPACE = " \n\r\t\f\v";
 
@@ -173,11 +176,14 @@ char* SmallShell::extractCommand(const char* cmd_l,string &firstWord){
 
 /* Creates and returns a pointer to Command class which matches the given command line (cmd_line) */
 Command *SmallShell::CreateCommand(const char *cmd_line) {
+    //cout << "cmd_line: " << cmd_line << endl;
     // Check if the command line ends with "&" for background execution
     string firstWord;
     char* newCmdLine = extractCommand(cmd_line, firstWord);
 
-    if (firstWord.compare("pwd") == 0) 
+    if (string(newCmdLine).find('<') != string::npos)
+        return new RedirectionCommand(cmd_line, newCmdLine);
+    else if (firstWord.compare("pwd") == 0)
         return new GetCurrDirCommand(cmd_line, newCmdLine);
     else if (firstWord.compare("chprompt") == 0)
         return new ChangePromptCommand(cmd_line, newCmdLine);
@@ -204,6 +210,7 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 }
 
 void SmallShell::executeCommand(const char *cmd_line) {
+    //cout << "executeCommand " << cmd_line << endl;
     Command* cmd = CreateCommand(cmd_line);
     // Invalid Command
     if (cmd == nullptr){
@@ -799,4 +806,84 @@ void JobsList::removeJobById(int jobId){
 
 bool JobsList::isEmpty(){
     return m_jobEntries->empty();
+}
+
+
+/*---------------------------------------------------------------------------------------------------*/
+/*------------------------------------------- Special Commands --------------------------------------*/
+/*---------------------------------------------------------------------------------------------------*/
+
+RedirectionCommand::RedirectionCommand(const char *origin_cmd_line, const char *cmd_line) :
+Command (origin_cmd_line, cmd_line) {}
+
+Command *RedirectionCommand::clone() const {
+    return new RedirectionCommand(*this);
+}
+
+void RedirectionCommand::execute() {
+    SmallShell &smash = SmallShell::getInstance();
+    int index = m_cmd_string.find_first_of('<');
+    bool isDouble = (m_cmd_string[index+1] == '<');
+    const char* command = m_cmd_string.substr(0,index-1).c_str();
+    cout << "command:~" << command << "~" << endl;
+    const char* file = m_cmd_string.substr(index+2,m_cmd_string.size()-index).c_str();
+    cout << "file name:~" << file << "~" << endl;
+    if (!isDouble){
+        file = m_cmd_string.substr(index+3,m_cmd_string.size()-index).c_str();
+    }
+
+    pid_t pid = fork();
+    if (pid < 0){
+        cout << "failed to fork" << endl;
+    }
+    // son processes
+    if (pid == 0){
+        cout << "son proccese" << endl;
+        int outputFile;
+        if (isDouble){
+            outputFile = open (file, O_WRONLY | O_CREAT | O_APPEND, 0644);
+            cout << "open for append" << endl;
+        }
+        else {
+            outputFile = open (file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            cout << "open for trunc" << endl;
+        }
+        if (outputFile < 0){
+            cout << "failed to open" << endl;
+            exit(1);
+        }
+        if (dup2(outputFile, STDOUT_FILENO) < 0){
+            cout << "dup2 fail" << endl;
+            close(outputFile);
+            exit(0);
+        }
+        cout << "executecommand!" << endl;
+        smash.executeCommand(command);
+        close(outputFile);
+        exit(1);
+    }
+    //parent processes
+    else{
+        int status;
+        waitpid(pid, &status, 0);
+        cout << "parent procceses" << endl;
+    }
+}
+
+void RedirectionCommand::writeOutput(string &file, string &output, bool toAppend) const {
+    // creating or opening the wanted file
+    ofstream outputFile;
+    if (toAppend)
+        outputFile.open(file, ios::app);
+    else
+        outputFile.open(file, ios::out);
+
+    // writing to the file the given output
+    if (!outputFile.is_open()){
+        cout << "couldn't open the file" << endl;
+    }
+    else {
+        outputFile << output << endl;
+        outputFile.close();
+    }
 }

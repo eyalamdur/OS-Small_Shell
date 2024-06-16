@@ -86,12 +86,15 @@ public:
 class RedirectionCommand : public Command {
     // TODO: Add your data members
 public:
-    explicit RedirectionCommand(const char *cmd_line);
+    explicit RedirectionCommand(const char *origin_cmd_line, const char *cmd_line);
     Command* clone() const override;
 
     virtual ~RedirectionCommand() {}
 
     void execute() override;
+
+    void writeOutput (string &file, string &output, bool toAppend) const;
+
 };
 
 class ChangeDirCommand : public BuiltInCommand {

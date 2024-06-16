@@ -824,11 +824,11 @@ void RedirectionCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
     int index = m_cmd_string.find_first_of('<');
     bool isDouble = (m_cmd_string[index+1] == '<');
-    const char* command = m_cmd_string.substr(0,index-1).c_str();
+    const char* command = strdup(m_cmd_string.substr(0,index-1).c_str());
     cout << "command:~" << command << "~" << endl;
-    const char* file = m_cmd_string.substr(index+2,m_cmd_string.size()-index).c_str();
+    const char* file = strdup(m_cmd_string.substr(index+2,m_cmd_string.size()-index).c_str());
     cout << "file name:~" << file << "~" << endl;
-    if (!isDouble){
+    if (isDouble){
         file = m_cmd_string.substr(index+3,m_cmd_string.size()-index).c_str();
     }
 
@@ -857,7 +857,7 @@ void RedirectionCommand::execute() {
             close(outputFile);
             exit(0);
         }
-        cout << "executecommand!" << endl;
+        //cout << "executecommand!" << endl;
         smash.executeCommand(command);
         close(outputFile);
         exit(1);

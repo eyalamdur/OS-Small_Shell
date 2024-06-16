@@ -830,9 +830,8 @@ void RedirectionCommand::execute() {
     cout << "command: " << command << endl;
     // forking the process, the son implement the command and writing the output while the parent wait
     pid_t pid = fork();
-    if (pid < 0){
+    if (pid < 0)
         cout << "failed to fork" << endl;
-    }
     // son processes
     if (pid == 0){
         int outputFile;

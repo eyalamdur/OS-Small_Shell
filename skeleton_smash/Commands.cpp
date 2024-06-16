@@ -825,9 +825,8 @@ void RedirectionCommand::execute() {
     const char* command = strdup(m_cmd_string.substr(0,index).c_str());
     const char* file = strdup(m_cmd_string.substr(index+1,m_cmd_string.size()-index).c_str());
     // in case using '>>' instead of '>'
-    if (isDouble){
+    if (isDouble)
         file = m_cmd_string.substr(index+2,m_cmd_string.size()-index).c_str();
-    }
     cout << "command: " << command << endl;
     // forking the process, the son implement the command and writing the output while the parent wait
     pid_t pid = fork();

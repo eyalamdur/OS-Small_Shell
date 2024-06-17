@@ -4,13 +4,13 @@
 #include <signal.h>
 #include "Commands.h"
 #include "signals.h"
+#include <csignal>
+#include <cstring>
 
 int main(int argc, char *argv[]) {
     // Ctrl+C signal
     if (signal(SIGINT, ctrlCHandler) == SIG_ERR) 
         perror("smash error: failed to set ctrl-C handler");
-
-    //TODO: setup sig alarm handler
 
     SmallShell &smash = SmallShell::getInstance();
     while (smash.toProceed()) {

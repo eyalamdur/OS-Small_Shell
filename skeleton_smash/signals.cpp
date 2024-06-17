@@ -2,18 +2,23 @@
 #include <signal.h>
 #include "signals.h"
 #include "Commands.h"
-
+#include <unistd.h>
+ 
 using namespace std;
 
 void ctrlCHandler(int sig_num) {
     cout << "smash: got ctrl-C" << endl;
     
     SmallShell &smash = SmallShell::getInstance();
-    JobsList* jobsList = smash.getJobsList();
+
+    // No fg process
+    if (smash.getForegroundProcess() == ERROR_VALUE)
+        return;
     
-    JobsList::JobEntry* currentJob = jobsList->getJobByPid(getpid());
-    if (currentJob != nullptr && currentJob->getProcessID() != getpid()) {
-        kill(currentJob->getProcessID(), SIGKILL);
-        cout << "smash: process " << currentJob->getProcessID() << " was killed." << endl;
-    }
+    // Kill fg process
+    cout << "smash: process " << smash.getForegroundProcess() << " was killed." << endl;
+    kill(smash.getForegroundProcess(),SIGKILL);
+    
+    // Reset to no fg process
+    smash.setForegroundProcess(ERROR_VALUE);
 }

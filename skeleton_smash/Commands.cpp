@@ -102,7 +102,7 @@ const set<string> SmallShell::COMMANDS = {"chprompt", "showpid", "pwd", "cd", "j
      "less", "more", "df", "du", "free", "uname", "w", "who", "last", "uptime", "banner", "notify-send", "shutdown", "sleep"
 };
 
-SmallShell::SmallShell() : m_prompt("smash"),  m_plastPwd(nullptr),  
+SmallShell::SmallShell() : m_fg_process(ERROR_VALUE), m_prompt("smash"),  m_plastPwd(nullptr),  
                         m_jobList(new JobsList()), m_proceed(true), m_alias(new map<string, string>){}
 
 SmallShell::~SmallShell() {
@@ -116,6 +116,14 @@ void SmallShell::setPrompt(const string str) {
 
 string SmallShell::getPrompt() const {
     return m_prompt;
+}
+
+void SmallShell::setForegroundProcess(int pid){
+    m_fg_process = pid;
+}
+
+int SmallShell::getForegroundProcess(){
+    return m_fg_process;
 }
 
 bool SmallShell::toProceed() const {
@@ -159,7 +167,6 @@ char* SmallShell::extractCommand(const char* cmd_l,string &firstWord){
     string cmd_s = _trim(string(newCmdLine));
     firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
-    char* cmd_line = strdup(newCmdLine);
     if(m_alias->find(firstWord) != m_alias->end()){
         string command = m_alias->find(firstWord)->second,  rest = "";
         
@@ -223,8 +230,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
         return;
     }
 
-
-    if(cmd->isExternalCommand()){
+ if(cmd->isExternalCommand()){
         // Fork a new process
         pid_t pid = fork();
 
@@ -233,13 +239,23 @@ void SmallShell::executeCommand(const char *cmd_line) {
             return;
         }
 
+        // Child process
+        if (pid == CHILD_ID)
+            setpgrp();
+
         // Parent process
         if (pid > CHILD_ID){
             if(cmd->isBackgroundCommand())
                 getJobsList()->addJob(cmd, pid);
             else{
+                // Set process in as foreground process
+                setForegroundProcess(pid);
+                
                 int status;
                 waitpid(pid, &status,0);
+                
+                // Set foreground process as empty
+                setForegroundProcess(ERROR_VALUE);
             }
             return;
         }
@@ -322,7 +338,6 @@ bool Command::isExternalCommand() const {
     return false; // Default implementation indicates it's not an ExternalCommand
 }
 
-
 /*---------------------------------------------------------------------------------------------------*/
 /*---------------------------------------- Built-in Commands ----------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
@@ -331,11 +346,6 @@ BuiltInCommand::BuiltInCommand(const char* origin_cmd_line, const char *cmd_line
 
 /* Constructor implementation for GetCurrDirCommand */
 GetCurrDirCommand::GetCurrDirCommand(const char* origin_cmd_line, const char *cmd_line) : BuiltInCommand(origin_cmd_line, cmd_line) {}
-
-/* Implement the clone method for GetCurrDirCommand */
-Command* GetCurrDirCommand::clone() const {
-    return new GetCurrDirCommand(*this);
-}
 
 /* Execute method to get and print the current working directory. */
 void GetCurrDirCommand::execute() {
@@ -348,11 +358,6 @@ void GetCurrDirCommand::execute() {
 /* C'tor for changePromptCommand*/
 ChangePromptCommand::ChangePromptCommand(const char* origin_cmd_line, const char *cmd_line) : BuiltInCommand(origin_cmd_line, cmd_line) {}
 
-/* Implement the clone method for ChangeDirCommand */
-Command* ChangePromptCommand::clone() const {
-    return new ChangePromptCommand(*this);
-}
-
 void ChangePromptCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
     string str = (getArgCount() > 1) ? getArgs()[1] : "smash";
@@ -363,11 +368,6 @@ void ChangePromptCommand::execute() {
 /* C'tor for ShowPidCommand Class*/
 ShowPidCommand::ShowPidCommand(const char* origin_cmd_line, const char *cmd_line) : BuiltInCommand(origin_cmd_line, cmd_line) {}
 
-/* Implement the clone method for ChangeDirCommand */
-Command* ShowPidCommand::clone() const {
-    return new ShowPidCommand(*this);
-}
-
 void ShowPidCommand::execute() {
     pid_t pid = getpid();
     cout << "smash pid is " << pid << endl;
@@ -376,11 +376,6 @@ void ShowPidCommand::execute() {
 
 /* C'tor for quit command*/
 QuitCommand::QuitCommand(const char* origin_cmd_line, const char *cmd_line, JobsList *jobs) : BuiltInCommand(origin_cmd_line, cmd_line) , m_jobsList(jobs){}
-
-/* Implement the clone method for ChangeDirCommand */
-Command* QuitCommand::clone() const {
-    return new QuitCommand(*this);
-}
 
 void QuitCommand::execute() {
     if (getArgCount() > 1 && getArgs()[1].compare("kill") == 0){
@@ -404,33 +399,27 @@ void QuitCommand::execute() {
 
 /* C'tor for aliasCommamd class */
 aliasCommand::aliasCommand(const char* origin_cmd_line, const char *cmd_line) : BuiltInCommand(origin_cmd_line, cmd_line) {
-    int space = 0;
+    unsigned int space = 0, equals = 0;
     for (; space < m_cmd_string.length() && m_cmd_string[space]!=' ' ; space++) {}
-    int equals = space;
+    equals = space;
     for (; equals < m_cmd_string.length() && m_cmd_string[equals]!='='; equals++) {}
-    //cout << "space: " << space <<", equals: " << equals << endl;
+
     int length = m_cmd_string.length() - equals - 3;
-    //cout << "length: " << (int)strlen(m_cmd_string) << endl;
     char command[length+1];
-    for (int i = 0 ; i < length ; i++){
+
+    for (int i = 0 ; i < length ; i++)
         command[i] = m_cmd_string[equals + 2 + i];
-    }
+
     command[length] = '\0';
     length = equals - space - 1;
+    
     char name[length + 1];
-    for (int i = 0; i < length; i++){
+    for (int i = 0; i < length; i++)
         name[i] = m_cmd_string[space + 1 + i];
-    }
-    name[length] = '\0';
-    //cout << "name: " << name << endl;
-    //cout << "command: " << command << endl;
-    this->name=name;
-    this->command=command;
-}
 
-/* Implement the clone method for ChangeDirCommand */
-Command* aliasCommand::clone() const {
-    return new aliasCommand(*this);
+    name[length] = '\0';
+    m_name = name;
+    m_command = command;
 }
 
 void aliasCommand::execute() {
@@ -443,9 +432,9 @@ void aliasCommand::execute() {
     
     // Add new alias command
     else{
-        string first = command.substr(0, command.find_first_of(" \n"));
+        string first = m_command.substr(0, m_command.find_first_of(" \n"));
         if (regex_match(m_cmd_string, aliasRegex))
-            smash.addAlias(name, command);
+            smash.addAlias(m_name, m_command);
         else
             cout << "smash error: alias: invalid alias format" << endl;
     }
@@ -454,11 +443,6 @@ void aliasCommand::execute() {
 
 /* C'tor for unaliasCommand class. */
 unaliasCommand::unaliasCommand(const char* origin_cmd_line, const char *cmd_line) : BuiltInCommand(origin_cmd_line, cmd_line){}
-
-/* Implement the clone method for ChangeDirCommand */
-Command* unaliasCommand::clone() const {
-    return new unaliasCommand(*this);
-}
 
 void unaliasCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
@@ -472,11 +456,6 @@ void unaliasCommand::execute() {
 
 /* Constructor implementation for ChangeDirCommand */
 ChangeDirCommand::ChangeDirCommand(const char* origin_cmd_line, const char *cmd_line, char **plastPwd) : BuiltInCommand(origin_cmd_line, cmd_line), plastPwd(plastPwd) {}
-
-/* Implement the clone method for ChangeDirCommand */
-Command* ChangeDirCommand::clone() const {
-    return new ChangeDirCommand(*this);
-}
 
 /* Execute method to change the current working directory. */
 void ChangeDirCommand::execute() {
@@ -512,22 +491,12 @@ void ChangeDirCommand::execute() {
 
 JobsCommand::JobsCommand(const char* origin_cmd_line, const char* cmd_line, JobsList* jobs) : BuiltInCommand(origin_cmd_line, cmd_line), m_jobsList(jobs) {}
 
-/* Implement the clone method for JobsCommand */
-Command* JobsCommand::clone() const {
-    return new JobsCommand(*this);
-}
-
 void JobsCommand::execute() {
     m_jobsList->printJobsList();
 }
 
 
 ForegroundCommand::ForegroundCommand(const char* origin_cmd_line, const char* cmd_line, JobsList* jobs) : BuiltInCommand(origin_cmd_line, cmd_line), m_jobsList(jobs){}
-
-/* Implement the clone method for JobsCommand */
-Command* ForegroundCommand::clone() const {
-    return new ForegroundCommand(*this);
-}
 
 void ForegroundCommand::execute() {
     // Check if the jobs list is empty
@@ -536,6 +505,7 @@ void ForegroundCommand::execute() {
         return;
     }
     
+    SmallShell &smash = SmallShell::getInstance();
     int jobID;
     // No job ID specified, select the job with the maximum job ID
     if (getArgs().size() == 1)
@@ -558,26 +528,24 @@ void ForegroundCommand::execute() {
         return;
     }
 
-    // Get the job and remove it from the jobs list
+    // Get the job, sets him as forground and remove it from the jobs list and prints the requested message
     JobsList::JobEntry* jobEntry = m_jobsList->getJobById(jobID);
+    int jobPid = jobEntry->getProcessID();
+    cout << jobEntry->getCommand()->getCommand() << " " << jobPid << endl;
+    smash.setForegroundProcess(m_jobsList->getJobById(jobID)->getProcessID());
     m_jobsList->removeJobById(jobID);
-
-    // Bring the job to the foreground and print the command line along with the PID
-    cout << jobEntry->getCommand()->getCommand() << " " << jobEntry->getProcessID() << endl;
 
     // Wait for the process to finish, bringing it to the foreground
     int status;
-    waitpid(jobEntry->getProcessID(), &status, 0);
+    waitpid(jobPid, &status, 0);
+
+    // No job in foreground
+    smash.setForegroundProcess(ERROR_VALUE);
 }
 
 
 /* Constructor implementation for KillCommand */
 KillCommand::KillCommand(const char* origin_cmd_line, const char *cmd_line, JobsList* jobs) : BuiltInCommand(origin_cmd_line, cmd_line), m_jobsList(jobs){}
-
-/* Implement the clone method for KillCommand */
-Command* KillCommand::clone() const {
-    return new KillCommand(*this);
-}
 
 /* Execute method to kill given jobID. */
 void KillCommand::execute() {
@@ -615,11 +583,6 @@ void KillCommand::execute() {
 ExternalCommand::ExternalCommand(const char* origin_cmd_line, const char *cmd_line, bool isBgCmd) : Command(origin_cmd_line, cmd_line, isBgCmd){
     if (isBgCmd)
         setCommand(getCommand()+"&");
-}
-
-/* Implement the clone method for ExternalCommand */
-Command* ExternalCommand::clone() const {
-    return new ExternalCommand(*this);
 }
 
 /* Execute method to an external command. */
@@ -678,11 +641,6 @@ bool ExternalCommand::isExternalCommand() const {
 /*---------------------------------------------------------------------------------------------------*/
 ListDirCommand::ListDirCommand(const char* origin_cmd_line, const char *cmd_line) : BuiltInCommand(origin_cmd_line, cmd_line) {}
 
-/* Implement the clone method for ListDirCommand */
-Command* ListDirCommand::clone() const {
-    return new ListDirCommand(*this);
-}
-
 /* Execute method to get and print theListDirCommand */
 void ListDirCommand::execute() {
     if (getArgCount() > LIST_DIR_COMMAND_ARGS_NUM) {
@@ -738,6 +696,64 @@ void ListDirCommand::execute() {
     closedir(dir);
 
 }
+
+
+RedirectionCommand::RedirectionCommand(const char *origin_cmd_line, const char *cmd_line) :
+Command (origin_cmd_line, cmd_line) {}
+
+void RedirectionCommand::execute() {
+    // breaking the cmd_line to a command and filename
+    SmallShell &smash = SmallShell::getInstance();
+    int index = m_cmd_string.find_first_of('>');
+    bool isDouble = (m_cmd_string[index+1] == '>');
+    const char* command = strdup(m_cmd_string.substr(0,index).c_str());
+    const char* file = strdup(m_cmd_string.substr(index+1,m_cmd_string.size()-index).c_str());
+
+    // in case using '>>' instead of '>'
+    if (isDouble)
+        file = m_cmd_string.substr(index+2,m_cmd_string.size()-index).c_str();
+
+    // forking the process, the son implement the command and writing the output while the parent wait
+    pid_t pid = fork();
+    if (pid < 0)
+        cout << "failed to fork" << endl;
+
+    // son processes
+    if (pid == 0){
+        int outputFile;
+        if (isDouble)
+            outputFile = open (file, O_WRONLY | O_CREAT | O_APPEND, 0644);
+        else 
+            outputFile = open (file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+        // Failed to open File
+        if (outputFile < 0){
+            cout << "failed to open" << endl;
+            exit(0);
+        }
+        if (dup2(outputFile, STDOUT_FILENO) < 0){
+            cout << "dup2 fail" << endl;
+            close(outputFile);
+            exit(0);
+        }
+        smash.executeCommand(command);
+        close(outputFile);
+
+        //free the allocated memory
+        free(const_cast<char*>(command));
+        exit(1);
+    }
+
+    //parent processes
+    else{
+        int status;
+        waitpid(pid, &status, 0);
+
+        //free the allocated memory
+        free(const_cast<char*>(command));
+    }
+}
+
 
 /*---------------------------------------------------------------------------------------------------*/
 /*------------------------------------------- Jobs Methods ------------------------------------------*/
@@ -798,7 +814,6 @@ void JobsList::addJob(Command* command, int jobPid, bool isStopped) {
     // Remove all finshed background jobs.
     removeFinishedJobs();
 
-    Command* cmd = command->clone(); // virtual clone method
     m_jobEntries->emplace_back(m_nextJobID++, jobPid, command, isStopped);
     m_numRunningJobs++;
 }
@@ -916,60 +931,3 @@ bool JobsList::isEmpty(){
     return m_jobEntries->empty();
 }
 
-
-/*---------------------------------------------------------------------------------------------------*/
-/*------------------------------------------- Special Commands --------------------------------------*/
-/*---------------------------------------------------------------------------------------------------*/
-
-RedirectionCommand::RedirectionCommand(const char *origin_cmd_line, const char *cmd_line) :
-Command (origin_cmd_line, cmd_line) {}
-
-Command *RedirectionCommand::clone() const {
-    return new RedirectionCommand(*this);
-}
-
-void RedirectionCommand::execute() {
-    // breaking the cmd_line to a command and filename
-    SmallShell &smash = SmallShell::getInstance();
-    int index = m_cmd_string.find_first_of('>');
-    bool isDouble = (m_cmd_string[index+1] == '>');
-    const char* command = strdup(m_cmd_string.substr(0,index).c_str());
-    const char* file = strdup(m_cmd_string.substr(index+1,m_cmd_string.size()-index).c_str());
-    // in case using '>>' instead of '>'
-    if (isDouble)
-        file = m_cmd_string.substr(index+2,m_cmd_string.size()-index).c_str();
-    cout << "command: " << command << endl;
-    // forking the process, the son implement the command and writing the output while the parent wait
-    pid_t pid = fork();
-    if (pid < 0)
-        cout << "failed to fork" << endl;
-    // son processes
-    if (pid == 0){
-        int outputFile;
-        if (isDouble)
-            outputFile = open (file, O_WRONLY | O_CREAT | O_APPEND, 0644);
-        else 
-            outputFile = open (file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (outputFile < 0){
-            cout << "failed to open" << endl;
-            exit(0);
-        }
-        if (dup2(outputFile, STDOUT_FILENO) < 0){
-            cout << "dup2 fail" << endl;
-            close(outputFile);
-            exit(0);
-        }
-        smash.executeCommand(command);
-        close(outputFile);
-        //free the allocated memory
-        free(const_cast<char*>(command));
-        exit(1);
-    }
-    //parent processes
-    else{
-        int status;
-        waitpid(pid, &status, 0);
-        //free the allocated memory
-        free(const_cast<char*>(command));
-    }
-}

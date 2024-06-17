@@ -21,9 +21,7 @@ class Command {
 public:
     Command(const char *origin_cmd_line, const char *cmd_line, bool isBgCmd = false);
     virtual ~Command();
-
     virtual void execute() = 0;
-    virtual Command* clone() const = 0;
 
     /* Args Methods */
     int getArgCount() const;
@@ -53,7 +51,7 @@ public:
 class ExternalCommand : public Command {
 public:
     ExternalCommand(const char* origin_cmd_line, const char *cmd_line, bool isBgCmd);
-    Command* clone() const override;
+
     virtual ~ExternalCommand() {}
 
     void execute() override;
@@ -67,7 +65,7 @@ class PipeCommand : public Command {
     // TODO: Add your data members
 public:
     PipeCommand(const char *cmd_line);
-    Command* clone() const override;
+
 
     virtual ~PipeCommand() {}
 
@@ -78,7 +76,7 @@ class WatchCommand : public Command {
     // TODO: Add your data members
 public:
     WatchCommand(const char *cmd_line);
-    Command* clone() const override;
+
 
     virtual ~WatchCommand() {}
 
@@ -89,7 +87,7 @@ class RedirectionCommand : public Command {
     // TODO: Add your data members
 public:
     explicit RedirectionCommand(const char *origin_cmd_line, const char *cmd_line);
-    Command* clone() const override;
+
 
     virtual ~RedirectionCommand() {}
 
@@ -100,7 +98,7 @@ public:
 class ChangeDirCommand : public BuiltInCommand {
 public:
     ChangeDirCommand(const char* origin_cmd_line, const char *cmd_line, char **plastPwd);
-    Command* clone() const override;
+
 
     virtual ~ChangeDirCommand() {}
 
@@ -113,7 +111,7 @@ protected:
 class GetCurrDirCommand : public BuiltInCommand {
 public:
     GetCurrDirCommand(const char* origin_cmd_line, const char *cmd_line);
-    Command* clone() const override;
+
 
     virtual ~GetCurrDirCommand() {}
 
@@ -123,7 +121,7 @@ public:
 class ShowPidCommand : public BuiltInCommand {
 public:
     ShowPidCommand(const char* origin_cmd_line, const char *cmd_line);
-    Command* clone() const override;
+
 
     virtual ~ShowPidCommand() {}
 
@@ -137,13 +135,11 @@ protected:
     JobsList* m_jobsList;
 public:
     QuitCommand(const char* origin_cmd_line, const char *cmd_line, JobsList *jobs);
-    Command* clone() const override;
 
     virtual ~QuitCommand() {}
 
     void execute() override;
 };
-
 
 class JobsList {
 public:
@@ -184,7 +180,7 @@ public:
     void removeJobById(int jobId);
     JobEntry *getJobById(int jobId);
     JobEntry *getJobByPid(int pid);
-    JobEntry *getLastJob(int *lastJobId);
+    JobEntry *getLastJob();
     JobEntry *getLastStoppedJob(int *jobId);
     bool isEmpty();
     int getNextJobID() const;
@@ -202,7 +198,7 @@ protected:
 
 public:
     JobsCommand(const char* origin_cmd_line, const char *cmd_line, JobsList *jobs);
-    Command* clone() const override;
+
     virtual ~JobsCommand() {}
 
     void execute() override;
@@ -213,7 +209,7 @@ protected:
     JobsList* m_jobsList;
 public:
     KillCommand(const char* origin_cmd_line, const char *cmd_line, JobsList *jobs);
-    Command* clone() const override;
+
     virtual ~KillCommand() {}
 
     void execute() override;
@@ -225,16 +221,15 @@ protected:
 
 public:
     ForegroundCommand(const char* origin_cmd_line, const char *cmd_line, JobsList *jobs);
-    Command* clone() const override;
-    virtual ~ForegroundCommand() {}
 
+    virtual ~ForegroundCommand() {}
     void execute() override;
 };
 
 class ListDirCommand : public BuiltInCommand {
 public:
     ListDirCommand(const char* origin_cmd_line, const char *cmd_line);
-    Command* clone() const override;
+
     virtual ~ListDirCommand() {}
 
     void execute() override;
@@ -243,7 +238,7 @@ public:
 class GetUserCommand : public BuiltInCommand {
 public:
     GetUserCommand(const char *cmd_line);
-    Command* clone() const override;
+
     virtual ~GetUserCommand() {}
 
     void execute() override;
@@ -251,11 +246,10 @@ public:
 
 class aliasCommand : public BuiltInCommand {
 private:
-    string name;
-    string command;
+    string m_name;
+    string m_command;
 public:
     aliasCommand(const char* origin_cmd_line, const char *cmd_line);
-    Command* clone() const override;
     virtual ~aliasCommand() {}
 
     void execute() override;
@@ -264,7 +258,7 @@ public:
 class unaliasCommand : public BuiltInCommand {
 public:
     unaliasCommand(const char* origin_cmd_line, const char *cmd_line);
-    Command* clone() const override;
+
     virtual ~unaliasCommand() {}
 
     void execute() override;
@@ -273,7 +267,7 @@ public:
 class ChangePromptCommand : public BuiltInCommand {
 public:
     ChangePromptCommand(const char* origin_cmd_line, const char *cmd_line);
-    Command* clone() const override;
+
     virtual ~ChangePromptCommand() {}
 
     void execute() override;
@@ -283,6 +277,7 @@ class SmallShell {
 private:
     SmallShell();
 
+    int m_fg_process;
     string m_prompt;
     char* m_plastPwd;
     JobsList* m_jobList;
@@ -295,7 +290,9 @@ public:
     void quit ();
 
     void setPrompt(const string str);
+    void setForegroundProcess(int pid);
     string getPrompt() const;
+    int getForegroundProcess();
 
     void addAlias (string name, string command);
     void removeAlias (vector<string>args);

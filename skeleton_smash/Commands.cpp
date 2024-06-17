@@ -842,7 +842,6 @@ void GetUserCommand::printUserByPid(pid_t pid) {
     std::string line;
     while (std::getline(statusFile, line)) {
         if (line.substr(0, 4) == "Uid:") {
-            //cout << "uid line: " << line << endl;
             std::istringstream input(line);
             std::string uidLabel;
             input >> uidLabel >> uid;

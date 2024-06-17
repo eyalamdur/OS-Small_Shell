@@ -66,7 +66,7 @@ public:
 class PipeCommand : public Command {
     // TODO: Add your data members
 public:
-    PipeCommand(const char *cmd_line);
+    PipeCommand(const char* origin_cmd_line, const char *cmd_line);
     Command* clone() const override;
 
     virtual ~PipeCommand() {}

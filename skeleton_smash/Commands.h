@@ -8,6 +8,7 @@
 #define COMMAND_MAX_ARGS (20)
 #define CD_COMMAND_ARGS_NUM (2)
 #define LIST_DIR_COMMAND_ARGS_NUM (2)
+#define DEFAULT_INTERVAL_TIME (2)
 #define DEFAULT_JOB_ID (1)
 #define DEFAULT_BUFFER_SIZE (256)
 #define DEFAULT_NUM_RUNNING_JOBS (0)
@@ -75,8 +76,7 @@ public:
 class WatchCommand : public Command {
     // TODO: Add your data members
 public:
-    WatchCommand(const char *cmd_line);
-
+    WatchCommand(const char *origin_cmd_line, const char *cmd_line);
 
     virtual ~WatchCommand() {}
 
@@ -278,7 +278,7 @@ class SmallShell {
 private:
     SmallShell();
 
-    int m_fg_process;
+    pid_t m_fg_process;
     string m_prompt;
     char* m_plastPwd;
     JobsList* m_jobList;
@@ -291,9 +291,9 @@ public:
     void quit ();
 
     void setPrompt(const string str);
-    void setForegroundProcess(int pid);
+    void setForegroundProcess(pid_t pid);
     string getPrompt() const;
-    int getForegroundProcess();
+    pid_t getForegroundProcess();
 
     void addAlias (string name, string command);
     void removeAlias (vector<string>args);

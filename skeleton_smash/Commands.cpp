@@ -121,11 +121,11 @@ string SmallShell::getPrompt() const {
     return m_prompt;
 }
 
-void SmallShell::setForegroundProcess(int pid){
+void SmallShell::setForegroundProcess(pid_t pid){
     m_fg_process = pid;
 }
 
-int SmallShell::getForegroundProcess(){
+pid_t SmallShell::getForegroundProcess(){
     return m_fg_process;
 }
 
@@ -758,7 +758,7 @@ void RedirectionCommand::execute() {
 }
 
 
-/* C'tor for getuser command class*/
+/* C'tor for getuser command class */
 GetUserCommand::GetUserCommand(const char *origin_cmd_line, const char *cmd_line) :
 BuiltInCommand(origin_cmd_line, cmd_line){}
 
@@ -820,6 +820,45 @@ void GetUserCommand::printUserByPid(pid_t pid) {
             cout << "failed to get the information for UID: " << uid << endl;
         if (!group)
             cout << "failed to get the information for GID: " << gid << endl;
+    }
+}
+
+
+/* C'tor for WatchCommand command class */
+WatchCommand::WatchCommand(const char *origin_cmd_line, const char *cmd_line) : Command(origin_cmd_line, cmd_line) {}
+
+void WatchCommand::execute() {
+    vector<string> args = getArgs();
+
+    // Check for interval and command in the arguments
+    if (args.size() < 2) {
+        cout << "smash error: watch: command not specified" << endl;
+        return;
+    }
+
+    int interval = DEFAULT_INTERVAL_TIME;
+    string command;
+    
+    // Get command depends on number of arguments
+    command = (args.size() == 2) ? args[1] : args[2];
+    try {
+        interval = stoi(args[1]);
+    } 
+    catch (invalid_argument &e) {
+        cout << "smash error: watch: invalid interval" << endl;
+        return;
+    }
+
+    while (true) {
+        // Clear the screen before displaying new output
+        system("clear");
+
+        // Execute the specified command
+        Command* cmd = SmallShell::getInstance().CreateCommand(command.c_str());
+        cmd->execute();
+
+        // Wait for the specified interval before executing the command again
+        sleep(interval);
     }
 }
 

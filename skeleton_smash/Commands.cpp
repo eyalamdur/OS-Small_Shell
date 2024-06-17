@@ -11,8 +11,11 @@
 #include <regex>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <fstream>
 #include <fcntl.h>
+#include <pwd.h>
+#include <grp.h>
 
 
 const string WHITESPACE = " \n\r\t\f\v";
@@ -212,6 +215,8 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new KillCommand(cmd_line, newCmdLine, getJobsList());
     else if (firstWord.compare("listdir") == 0) 
         return new ListDirCommand(cmd_line, newCmdLine);
+    else if (firstWord.compare("getuser") == 0)
+        return new GetUserCommand(cmd_line, newCmdLine);
     else
         return new ExternalCommand(cmd_line, newCmdLine, _isBackgroundCommand(cmd_line));
 
@@ -717,16 +722,15 @@ void RedirectionCommand::execute() {
     pid_t pid = fork();
     if (pid < 0)
         cout << "failed to fork" << endl;
-
+        
     // son processes
     if (pid == 0){
         int outputFile;
         if (isDouble)
             outputFile = open (file, O_WRONLY | O_CREAT | O_APPEND, 0644);
-        else 
+        else
             outputFile = open (file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-
-        // Failed to open File
+    
         if (outputFile < 0){
             cout << "failed to open" << endl;
             exit(0);
@@ -738,7 +742,6 @@ void RedirectionCommand::execute() {
         }
         smash.executeCommand(command);
         close(outputFile);
-
         //free the allocated memory
         free(const_cast<char*>(command));
         exit(1);
@@ -754,6 +757,71 @@ void RedirectionCommand::execute() {
     }
 }
 
+
+/* C'tor for getuser command class*/
+GetUserCommand::GetUserCommand(const char *origin_cmd_line, const char *cmd_line) :
+BuiltInCommand(origin_cmd_line, cmd_line){}
+
+void GetUserCommand::execute() {
+    if (getArgCount() > 2){
+        cout << "smash error: getuser: too many arguments" << endl;
+        return;
+    }
+    if (getArgCount() == 1) {
+        cout << "smash error: getuser: too few arguments" << endl;
+        return;
+    }
+    try {
+        pid_t pid = static_cast<pid_t>(stoi(getArgs()[1]));
+        printUserByPid(pid);
+    }
+    catch (const std::exception &e){
+        cout << "smash error: getuser: process " << getArgs()[1] << " does not exist" << endl;
+    }
+}
+
+void GetUserCommand::printUserByPid(pid_t pid) {
+    //building the path to the status file using the given pid
+    string status = "/proc/" + to_string(pid) + "/status";
+    // opening the status file
+    ifstream statusFile(status);
+    if (!statusFile.is_open())
+        throw exception();
+
+    // Variables to store UID and GID
+    uid_t uid = -1;
+    gid_t gid = -1;
+
+    // Read the file line by line
+    std::string line;
+    while (std::getline(statusFile, line)) {
+        if (line.substr(0, 4) == "Uid:") {
+            std::istringstream input(line);
+            std::string uidLabel;
+            input >> uidLabel >> uid;
+        }
+        if (line.substr(0, 4) == "Gid:") {
+            std::istringstream input(line);
+            std::string gidLabel;
+            input >> gidLabel >> gid;
+        }
+    }
+    // making pointers to the user and the group to get the names
+    struct passwd* user = getpwuid(uid);
+    struct group* group = getgrgid(gid);
+
+    //checking validity of pointers and printing the correct message
+    if (user && group){
+        cout << "User: " << user->pw_name << endl;
+        cout << "Group: " << group->gr_name << endl;
+    }
+    else{
+        if (!user)
+            cout << "failed to get the information for UID: " << uid << endl;
+        if (!group)
+            cout << "failed to get the information for GID: " << gid << endl;
+    }
+}
 
 /*---------------------------------------------------------------------------------------------------*/
 /*------------------------------------------- Jobs Methods ------------------------------------------*/
@@ -931,3 +999,8 @@ bool JobsList::isEmpty(){
     return m_jobEntries->empty();
 }
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> e3ac8d0d8553f08ebdb22388925f4d95f9987045

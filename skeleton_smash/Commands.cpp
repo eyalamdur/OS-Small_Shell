@@ -789,8 +789,8 @@ void GetUserCommand::printUserByPid(pid_t pid) {
         throw exception();
 
     // Variables to store UID and GID
-    uid_t uid = -1;
-    gid_t gid = -1;
+    uid_t uid = ERROR_VALUE;
+    gid_t gid = ERROR_VALUE;
 
     // Read the file line by line
     std::string line;
@@ -998,9 +998,3 @@ void JobsList::removeFinishedJobs(){
 bool JobsList::isEmpty(){
     return m_jobEntries->empty();
 }
-
-<<<<<<< HEAD
-=======
-
-
->>>>>>> e3ac8d0d8553f08ebdb22388925f4d95f9987045

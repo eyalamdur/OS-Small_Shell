@@ -847,7 +847,6 @@ void GetUserCommand::printUserByPid(pid_t pid) {
             input >> uidLabel >> uid;
         }
         if (line.substr(0, 4) == "Gid:") {
-            //cout << "gid line: " << line << endl;
             std::istringstream input(line);
             std::string gidLabel;
             input >> gidLabel >> gid;

@@ -242,11 +242,12 @@ public:
 
 class GetUserCommand : public BuiltInCommand {
 public:
-    GetUserCommand(const char *cmd_line);
+    GetUserCommand(const char* origin_cmd_line, const char *cmd_line);
     Command* clone() const override;
     virtual ~GetUserCommand() {}
 
     void execute() override;
+    void printUserByPid (pid_t pid);
 };
 
 class aliasCommand : public BuiltInCommand {

@@ -863,9 +863,8 @@ void GetUserCommand::printUserByPid(pid_t pid) {
     else{
         if (!user)
             cout << "failed to get the information for UID: " << uid << endl;
-        if (!group){
+        if (!group)
             cout << "failed to get the information for GID: " << gid << endl;
-        }
     }
 }
 

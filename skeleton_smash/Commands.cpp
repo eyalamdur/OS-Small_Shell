@@ -451,8 +451,8 @@ void aliasCommand::execute() {
     else{
         m_cmd_string = _trim(m_cmd_string);
         string first = command.substr(0, command.find_first_of(" \n"));
-        cout << "m_cmd_line:~" << m_cmd_string << "~" << endl;
-        cout << regex_match(m_cmd_string, aliasRegex) << endl;
+        //cout << "m_cmd_line:~" << m_cmd_string << "~" << endl;
+        //cout << regex_match(m_cmd_string, aliasRegex) << endl;
         if (regex_match(m_cmd_string, aliasRegex))
             smash.addAlias(name, command);
         else
@@ -925,13 +925,13 @@ void PipeCommand::execute() {
             exit(1);
         }
         close(fd[1]);
-
         const char* commandToExecute = strdup(command1.c_str());
         smash.executeCommand(commandToExecute);
         free(const_cast<char*>(commandToExecute));
         exit(0);
     }
-
+    int status;
+    waitpid(pid1, &status, 0);
     pid_t pid2 = fork();
     if (pid2 < 0) {
         perror("fork failed");
@@ -951,11 +951,14 @@ void PipeCommand::execute() {
             close(fd[0]);
             exit(1);
         }
+        char buffer[100];
+        ssize_t size = read(fd[0], buffer, 100);
         close(fd[0]);
-//        char *buffer[100];
-//        read(fd[0], buffer, 100);
-//        const char* commandToExecute = strdup(command2.c_str()+" "+buffer);
-        const char* commandToExecute = strdup(command2.c_str());
+        buffer[size] = '\0';
+        cout << "buffer: " << buffer << endl;
+        const char* commandToExecute = strdup((command2 + " " + string(_trim(buffer))).c_str());
+        cout << "command to execute: " << commandToExecute << "~" << endl;
+        //const char* commandToExecute = strdup(command2.c_str());
         smash.executeCommand(commandToExecute);
         free(const_cast<char*>(commandToExecute));
         exit(0);
@@ -964,8 +967,6 @@ void PipeCommand::execute() {
     // Parent process
     close(fd[0]);
     close(fd[1]);
-    int status;
-    waitpid(pid1, &status, 0);
     waitpid(pid2, &status, 0);
 }
 

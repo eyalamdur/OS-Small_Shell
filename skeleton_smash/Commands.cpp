@@ -440,6 +440,7 @@ Command* aliasCommand::clone() const {
 }
 
 void aliasCommand::execute() {
+    //cout << "aliascommand" << endl;
     const regex aliasRegex("^alias [a-zA-Z0-9_]+='[^']*'$");
     SmallShell &smash = SmallShell::getInstance();
 
@@ -453,8 +454,10 @@ void aliasCommand::execute() {
         string first = command.substr(0, command.find_first_of(" \n"));
         //cout << "m_cmd_line:~" << m_cmd_string << "~" << endl;
         //cout << regex_match(m_cmd_string, aliasRegex) << endl;
-        if (regex_match(m_cmd_string, aliasRegex))
+        if (regex_match(m_cmd_string, aliasRegex)){
             smash.addAlias(name, command);
+            //smash.printAlias();
+        }
         else
             cout << "smash error: alias: invalid alias format" << endl;
     }
@@ -883,7 +886,7 @@ Command *PipeCommand::clone() const {
 }
 
 void PipeCommand::execute() {
-    cout << "execute pipe command" << endl;
+    //cout << "execute pipe command" << endl;
     SmallShell &smash = SmallShell::getInstance();
 
     // checking if its '|' or '|&| pipe
@@ -897,29 +900,30 @@ void PipeCommand::execute() {
     string command2 = m_cmd_string.substr(m_cmd_string.find_first_of(c) + 1);
     command1 = _trim(command1);
     command2 = _trim(command2);
-    cout << "command1: " << command1 << endl;
-    cout << "command2: " << command2 << endl;
+    //cout << "command1: " << command1 << endl;
+    //cout << "command2: " << command2 << endl;
 
     // Create pipe
     int fd[2];
     if (pipe(fd) < 0) {
-        perror("pipe failed");
+        cout << "pipe failed" << endl;
         return;
     }
 
     // Fork the first child (command1)
     pid_t pid1 = fork();
     if (pid1 < 0) {
-        perror("fork failed");
+        cout << "fork failed" << endl;
         close(fd[0]);
         close(fd[1]);
         return;
     }
     // First child process (command1)
     if (pid1 == 0) {
-        cout << "First child process" << endl;
+        //cout << "child process" << endl;
         close(fd[0]);
-        if (dup2(fd[1], STDOUT_FILENO) < 0) { //fd[1] is the writing end
+        int outputChannel = (isErr ? STDERR_FILENO :  STDOUT_FILENO) ;
+        if (dup2(fd[1], outputChannel) < 0) { //fd[1] is the writing end
             perror("dup2 failed");
             close(fd[1]);
             exit(1);
@@ -930,44 +934,27 @@ void PipeCommand::execute() {
         free(const_cast<char*>(commandToExecute));
         exit(0);
     }
+    //parent process
     int status;
     waitpid(pid1, &status, 0);
-    pid_t pid2 = fork();
-    if (pid2 < 0) {
-        perror("fork failed");
-        close(fd[0]);
-        close(fd[1]);
-        return;
-    }
-    // Second child process (command2)
-    if (pid2 == 0) {
-        cout << "Second child process" << endl;
-        close(fd[1]);
-        int inputChannel = STDIN_FILENO;
-        if (c == '&')
-            inputChannel = STDERR_FILENO;
-        if (dup2(fd[0], inputChannel) < 0) { // fd[0] is the reading end
-            perror("dup2 failed");
-            close(fd[0]);
-            exit(1);
-        }
-        char buffer[100];
-        ssize_t size = read(fd[0], buffer, 100);
-        close(fd[0]);
-        buffer[size] = '\0';
-        cout << "buffer: " << buffer << endl;
-        const char* commandToExecute = strdup((command2 + " " + string(_trim(buffer))).c_str());
-        cout << "command to execute: " << commandToExecute << "~" << endl;
-        //const char* commandToExecute = strdup(command2.c_str());
-        smash.executeCommand(commandToExecute);
-        free(const_cast<char*>(commandToExecute));
-        exit(0);
-    }
-
-    // Parent process
-    close(fd[0]);
+    //cout << "Parent process" << endl;
     close(fd[1]);
-    waitpid(pid2, &status, 0);
+//    if (dup2(fd[0], STDIN_FILENO) < 0) { // fd[0] is the reading end
+//        cout << "dup2 failed" << endl;
+//        close(fd[0]);
+//        return;
+//    }
+    char buffer[100];
+    ssize_t size = read(fd[0], buffer, 100);
+    close(fd[0]);
+    buffer[size] = '\0';
+    //cout << "buffer: " << buffer << endl;
+    const char* commandToExecute = strdup((command2 + " " + string(_trim(buffer))).c_str());
+    //cout << "command to execute: " << commandToExecute << "~" << endl;
+    //const char* commandToExecute = strdup(command2.c_str());
+    smash.executeCommand(commandToExecute);
+    free(const_cast<char*>(commandToExecute));
+    //cout << "finised the func. currnet pid: " << pid1 << endl;
 }
 
 /*---------------------------------------------------------------------------------------------------*/

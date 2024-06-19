@@ -242,6 +242,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
 
         if (pid == ERROR_VALUE) {
             cerr << "Error forking process." << endl;
+            delete cmd;
             return;
         }
 
@@ -263,12 +264,14 @@ void SmallShell::executeCommand(const char *cmd_line) {
                 // Set foreground process as empty
                 setForegroundProcess(ERROR_VALUE);
             }
+            delete cmd;
             return;
         }
     }
 
     // Execute command
     cmd->execute();
+    delete cmd;
 }
 
 /* Gets pointer to the last path of working directory */
@@ -467,7 +470,7 @@ ChangeDirCommand::ChangeDirCommand(const char* origin_cmd_line, const char *cmd_
 /* Execute method to change the current working directory. */
 void ChangeDirCommand::execute() {
     char *newDir = nullptr;
-
+    bool toFree = false;
     // 1 argument - go to the given directory
     if (getArgCount() == CD_COMMAND_ARGS_NUM){
         if (getArgs()[1] == "-"){
@@ -478,8 +481,10 @@ void ChangeDirCommand::execute() {
         }
         else if (getArgs()[1] == "..")
             newDir = dirname(getcwd(NULL, 0));
-        else
+        else{
             newDir = strdup(getArgs()[1].c_str());
+            toFree = true;
+        }
     }
 
     // 2 args or more
@@ -492,6 +497,9 @@ void ChangeDirCommand::execute() {
     if (newDir != nullptr){
         *plastPwd = getcwd(NULL, 0);
         chdir(newDir);
+    }
+    if (toFree && newDir){
+        free(newDir);
     }
 }
 

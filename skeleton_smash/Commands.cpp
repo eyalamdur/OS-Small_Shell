@@ -896,8 +896,6 @@ void PipeCommand::execute() {
     string command2 = m_cmd_string.substr(m_cmd_string.find_first_of(c) + 1);
     command1 = _trim(command1);
     command2 = _trim(command2);
-    //cout << "command1: " << command1 << endl;
-    //cout << "command2: " << command2 << endl;
 
     // Create pipe
     int fd[2];

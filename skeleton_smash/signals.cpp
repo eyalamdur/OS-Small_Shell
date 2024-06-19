@@ -11,6 +11,9 @@ void ctrlCHandler(int sig_num) {
     
     SmallShell &smash = SmallShell::getInstance();
 
+    // Stop watch case
+    smash.setStopWatch(true);
+    
     // No fg process
     if (smash.getForegroundProcess() == ERROR_VALUE)
         return;

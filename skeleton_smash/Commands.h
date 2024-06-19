@@ -74,13 +74,16 @@ public:
 };
 
 class WatchCommand : public Command {
-    // TODO: Add your data members
+private:
+    class InvalidInterval : public exception{};
 public:
     WatchCommand(const char *origin_cmd_line, const char *cmd_line);
-
     virtual ~WatchCommand() {}
-
+    
     void execute() override;
+    string getWatchCommand(int& interval);
+    void extractWatchCommand(string& command, int start, vector<string> args, int argsNum);
+    void updateInterval(string value, int& interval);
 };
 
 class RedirectionCommand : public Command {
@@ -147,9 +150,7 @@ public:
     protected:
         int m_jobID;
         int m_processID;
-        Command* m_command;
-        bool m_isStopped;
-    
+        Command* m_command;    
     public:
         JobEntry(int id, int pid, Command* cmd, bool stopped);
 
@@ -157,11 +158,9 @@ public:
         void setJobID(int id);
         void setProcessID(int id);
         void setCommand(Command* cmd);
-        void setStopped(bool stopped);
         int getJobID() const;
         int getProcessID() const;
         Command* getCommand() const;
-        bool isStopped() const;
 
 
     };
@@ -181,7 +180,6 @@ public:
     JobEntry *getJobById(int jobId);
     JobEntry *getJobByPid(int pid);
     JobEntry *getLastJob();
-    JobEntry *getLastStoppedJob(int *jobId);
     bool isEmpty();
     int getNextJobID() const;
     int getNumRunningJobs() const;
@@ -283,6 +281,7 @@ private:
     char* m_plastPwd;
     JobsList* m_jobList;
     bool m_proceed;
+    bool m_stopWatch;
     map<string, string>* m_alias;
 
 public:
@@ -291,9 +290,11 @@ public:
     void quit ();
 
     void setPrompt(const string str);
+    void setStopWatch(bool status);
     void setForegroundProcess(pid_t pid);
     string getPrompt() const;
-    pid_t getForegroundProcess();
+    bool getStopWatch() const;
+    pid_t getForegroundProcess() const;
 
     void addAlias (string name, string command);
     void removeAlias (vector<string>args);

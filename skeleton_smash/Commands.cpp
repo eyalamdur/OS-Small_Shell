@@ -914,7 +914,6 @@ void PipeCommand::execute() {
     }
     // First child process (command1)
     if (pid1 == 0) {
-        //cout << "child process" << endl;
         close(fd[0]);
         int outputChannel = (isErr ? STDERR_FILENO :  STDOUT_FILENO) ;
         if (dup2(fd[1], outputChannel) < 0) { //fd[1] is the writing end

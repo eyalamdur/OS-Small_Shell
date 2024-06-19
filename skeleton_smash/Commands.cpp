@@ -940,7 +940,6 @@ void PipeCommand::execute() {
     ssize_t size = read(fd[0], buffer, BIG_NUMBER);
     close(fd[0]);
     buffer[size] = '\0';
-    //cout << "buffer: " << buffer << endl;
     const char* commandToExecute = strdup((command2 + " " + string(_trim(buffer))).c_str());
     //cout << "command to execute: " << commandToExecute << "~" << endl;
     //const char* commandToExecute = strdup(command2.c_str());

@@ -1,3 +1,4 @@
 *.o
 *.vscode
 smash
+skeleton_smash/ t.txt

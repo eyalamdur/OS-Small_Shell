@@ -946,7 +946,6 @@ void PipeCommand::execute() {
     //const char* commandToExecute = strdup(command2.c_str());
     smash.executeCommand(commandToExecute);
     free(const_cast<char*>(commandToExecute));
-    //cout << "finised the func. currnet pid: " << pid1 << endl;
 }
 
 /*---------------------------------------------------------------------------------------------------*/

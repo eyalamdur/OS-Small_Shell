@@ -106,7 +106,7 @@ const set<string> SmallShell::COMMANDS = {"chprompt", "showpid", "pwd", "cd", "j
 };
 
 SmallShell::SmallShell() : m_fg_process(ERROR_VALUE), m_prompt("smash"),  m_plastPwd(nullptr),  
-                        m_jobList(new JobsList()), m_proceed(true), m_alias(new map<string, string>){}
+                        m_jobList(new JobsList()), m_proceed(true), m_stopWatch(false), m_alias(new map<string, string>){}
 
 SmallShell::~SmallShell() {
     delete m_jobList;
@@ -121,11 +121,20 @@ string SmallShell::getPrompt() const {
     return m_prompt;
 }
 
-void SmallShell::setForegroundProcess(int pid){
+void SmallShell::setStopWatch(bool status){
+    m_stopWatch = status;
+}
+
+bool SmallShell::getStopWatch() const{
+    return m_stopWatch;
+}
+
+void SmallShell::setForegroundProcess(pid_t pid){
     m_fg_process = pid;
 }
 
-int SmallShell::getForegroundProcess(){
+
+pid_t SmallShell::getForegroundProcess() const{
     return m_fg_process;
 }
 
@@ -218,6 +227,8 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new ListDirCommand(cmd_line, newCmdLine);
     else if (firstWord.compare("getuser") == 0)
         return new GetUserCommand(cmd_line, newCmdLine);
+    else if (firstWord.compare("watch") == 0)
+        return new WatchCommand(cmd_line, newCmdLine);
     else
         return new ExternalCommand(cmd_line, newCmdLine, _isBackgroundCommand(cmd_line));
 
@@ -625,9 +636,13 @@ void ExternalCommand::runSimpleCommand(const string& cmd) {
 }
 
 /* Run a complex external command by executing bash */
-void ExternalCommand::runComplexCommand(const string& cmd) {
-    string bashCmd = "bash -c \"" + cmd + "\"";
-    system(bashCmd.c_str());
+void ExternalCommand::runComplexCommand(const string& cmd) {    
+    // Execute the command using execvp
+    execlp("bash", "bash", "-c", cmd.c_str(), (char *)nullptr);
+
+    // If execlp returns, an error occurred
+    cerr << "External command execution failed" << std::endl;
+    exit(1);
 }
 
 vector<string> ExternalCommand::splitCommand(const string& cmd) {
@@ -759,7 +774,7 @@ void RedirectionCommand::execute() {
 }
 
 
-/* C'tor for getuser command class*/
+/* C'tor for getuser command class */
 GetUserCommand::GetUserCommand(const char *origin_cmd_line, const char *cmd_line) :
 BuiltInCommand(origin_cmd_line, cmd_line){}
 
@@ -822,6 +837,83 @@ void GetUserCommand::printUserByPid(pid_t pid) {
         if (!group)
             cout << "failed to get the information for GID: " << gid << endl;
     }
+}
+
+/* C'tor for WatchCommand command class */
+WatchCommand::WatchCommand(const char *origin_cmd_line, const char *cmd_line) : Command(origin_cmd_line, cmd_line) {}
+
+void WatchCommand::execute() {
+    SmallShell& smash = SmallShell::getInstance();
+
+    // Check for interval and command in the arguments
+    int interval = DEFAULT_INTERVAL_TIME;
+    string command = getWatchCommand(interval);
+    
+    //Invalid command
+    if (command == "")
+        return;
+
+    // Make sure to reset stopWatch
+    smash.setStopWatch(false);
+    while (!smash.getStopWatch()) {
+        // Clear the screen before displaying new output
+        smash.executeCommand("clear");
+
+        // Execute the specified command
+        smash.executeCommand(command.c_str());
+
+        // Wait for the specified interval before executing the command again
+        sleep(interval);
+    }
+}
+
+string WatchCommand::getWatchCommand(int& interval){
+    vector<string> args = getArgs();
+    int argsNum = getArgCount(), start = 2;
+    string command;
+    
+    // Get interval
+    try {
+        updateInterval(args[1], interval);
+    }
+    catch(InvalidInterval& e){
+        cout << "smash error: watch: invalid interval" << endl;
+        return "";
+    }
+    catch (...) {
+        start--;
+        if (SmallShell::COMMANDS.find(args[1]) == SmallShell::COMMANDS.end()){
+            cout << "External command execution failed" << endl;
+            return "";
+        }
+    }
+
+    if (argsNum == 1){
+        cout << "smash error: watch: command not specified" << endl;
+        return "";
+    }
+
+    extractWatchCommand(command, start, args, argsNum);
+
+    return command;
+}
+
+void WatchCommand::extractWatchCommand(string& command, int start, vector<string> args, int argsNum){
+    // Concatenate all arguments for the command from start
+    for (int i = start; i < argsNum; ++i) {
+        command += args[i] + " ";
+    }
+
+    // Remove the trailing space at the end if it exists
+    command.pop_back(); 
+}
+
+void WatchCommand::updateInterval(string value, int& interval){
+    // Ensure the string represents a non-negative integer
+    size_t pos;
+    interval = stoi(value, &pos);
+    if (interval <= 0)
+        throw InvalidInterval();
 }
 
 /* C'tor for pipe command class */
@@ -898,7 +990,7 @@ void PipeCommand::execute() {
 /*---------------------------------------------------------------------------------------------------*/
 
 /* C'tor for JobEntry & Setters/Getters */
-JobsList::JobEntry::JobEntry(int id, int pid, Command* cmd, bool stopped) : m_jobID(id), m_processID(pid), m_command(cmd), m_isStopped(stopped) {}
+JobsList::JobEntry::JobEntry(int id, int pid, Command* cmd, bool stopped) : m_jobID(id), m_processID(pid), m_command(cmd) {}
 
 void JobsList::JobEntry::setJobID(int id){
     m_jobID = id;
@@ -912,10 +1004,6 @@ void JobsList::JobEntry::setCommand(Command* cmd){
     m_command = cmd;
 }
 
-void JobsList::JobEntry::setStopped(bool stopped){
-    m_isStopped = stopped;
-}
-
 int JobsList::JobEntry::getJobID() const{
     return m_jobID;
 }
@@ -926,10 +1014,6 @@ int JobsList::JobEntry::getProcessID() const{
 
 Command* JobsList::JobEntry::getCommand() const{
     return m_command;
-}
-
-bool JobsList::JobEntry::isStopped() const{
-    return m_isStopped;
 }
 
 
@@ -1008,12 +1092,9 @@ void JobsList::removeFinishedJobs(){
     for (auto it = m_jobEntries->begin(); it != m_jobEntries->end(); ) {
         pid_t result = waitpid(it->getProcessID(), &status, WNOHANG);
 
-        // The child process of this job has terminated
-        if (result == it->getProcessID()) { 
-            // Update the status of the job to stopped & erase it from the list.
-            it->setStopped(true);
+        // The child process of this job has terminated - Erase it from the list.
+        if (result == it->getProcessID())
             it = m_jobEntries->erase(it);
-        } 
         else{
             // Update the highest job ID
             if (it->getJobID() > highestJobId) 
@@ -1041,9 +1122,7 @@ void JobsList::removeFinishedJobs(){
 
     // Print the jobs list in the required format
     for (const auto& job : *m_jobEntries) {
-        if (!job.isStopped()) {
-            cout << "[" << job.getJobID() << "] " << job.getCommand()->getOriginalCommand() << endl;
-        }
+        cout << "[" << job.getJobID() << "] " << job.getCommand()->getOriginalCommand() << endl;
     }
 }
 
@@ -1059,9 +1138,7 @@ void JobsList::removeFinishedJobs(){
 
     // Print the jobs list in the required format
     for (const auto& job : *m_jobEntries) {
-        if (!job.isStopped()) {
-            cout << job.getProcessID() << ": " << job.getCommand()->getOriginalCommand() << endl;
-        }
+        cout << job.getProcessID() << ": " << job.getCommand()->getOriginalCommand() << endl;
     }
 }
 

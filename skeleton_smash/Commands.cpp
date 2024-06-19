@@ -451,10 +451,8 @@ void aliasCommand::execute() {
     else{
         m_cmd_string = _trim(m_cmd_string);
         string first = command.substr(0, command.find_first_of(" \n"));
-        if (regex_match(m_cmd_string, aliasRegex)){
+        if (regex_match(m_cmd_string, aliasRegex))
             smash.addAlias(name, command);
-            //smash.printAlias();
-        }
         else
             cout << "smash error: alias: invalid alias format" << endl;
     }

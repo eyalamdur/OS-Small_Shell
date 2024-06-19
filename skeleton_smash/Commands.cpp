@@ -109,6 +109,8 @@ SmallShell::SmallShell() : m_fg_process(ERROR_VALUE), m_prompt("smash"),  m_plas
                         m_jobList(new JobsList()), m_proceed(true), m_stopWatch(false), m_alias(new map<string, string>){}
 
 SmallShell::~SmallShell() {
+    if (m_plastPwd)
+        free(m_plastPwd);
     delete m_jobList;
     delete m_alias;
 }
@@ -132,7 +134,6 @@ bool SmallShell::getStopWatch() const{
 void SmallShell::setForegroundProcess(pid_t pid){
     m_fg_process = pid;
 }
-
 
 pid_t SmallShell::getForegroundProcess() const{
     return m_fg_process;
@@ -253,6 +254,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
 
         if (pid == ERROR_VALUE) {
             cerr << "Error forking process." << endl;
+            delete cmd;
             return;
         }
 
@@ -273,6 +275,10 @@ void SmallShell::executeCommand(const char *cmd_line) {
                 
                 // Set foreground process as empty
                 setForegroundProcess(ERROR_VALUE);
+
+                // Free allocated memory from parent process 
+                delete cmd;
+
             }
             return;
         }
@@ -280,11 +286,17 @@ void SmallShell::executeCommand(const char *cmd_line) {
 
     // Execute command
     cmd->execute();
+    delete cmd;
 }
 
 /* Gets pointer to the last path of working directory */
-char** SmallShell::getPlastPwdPtr() {
-    return &m_plastPwd;
+char* SmallShell::getPlastPwdPtr() {
+    return m_plastPwd;
+}
+
+/* Gets pointer to the last path of working directory */
+void SmallShell::setPlastPwdPtr(char * newPwd) {
+    m_plastPwd = newPwd;
 }
 
 JobsList* SmallShell::getJobsList(){
@@ -301,7 +313,12 @@ void SmallShell::printToTerminal(string line){
 /*---------------------------------------------------------------------------------------------------*/
 /* C'tor & D'tor for Command Class*/
 Command::Command(const char *origin_cmd_line, const char *cmd_line, bool isBgCmd) : m_origin_cmd_string(string(origin_cmd_line)),
- m_cmd_string(string(cmd_line)), m_bgCmd(isBgCmd) {}
+ m_cmd_string(string(cmd_line)), m_bgCmd(isBgCmd) {
+    // Free allocated memory in extract command
+    if (cmd_line)
+        free(const_cast<char*>(cmd_line));
+ }
+
 Command::~Command() {}
 
 /* Method to count the number of arguments, assuming arguments are space-separated */
@@ -473,26 +490,37 @@ void unaliasCommand::execute() {
 
 
 /* Constructor implementation for ChangeDirCommand */
-ChangeDirCommand::ChangeDirCommand(const char* origin_cmd_line, const char *cmd_line, char **plastPwd) : BuiltInCommand(origin_cmd_line, cmd_line), plastPwd(plastPwd) {}
+ChangeDirCommand::ChangeDirCommand(const char* origin_cmd_line, const char *cmd_line, char *plastPwd) : BuiltInCommand(origin_cmd_line, cmd_line), plastPwd(plastPwd) {}
+
+ChangeDirCommand::~ChangeDirCommand(){
+    free(plastPwd);
+}
 
 /* Execute method to change the current working directory. */
 void ChangeDirCommand::execute() {
+    SmallShell& smash = SmallShell::getInstance();
     char *newDir = nullptr;
-
+    bool lessArg = false;
     // 1 argument - go to the given directory
     if (getArgCount() == CD_COMMAND_ARGS_NUM){
         if (getArgs()[1] == "-"){
-            if (*plastPwd != nullptr)
-                newDir = *plastPwd;
+            if (plastPwd != nullptr)
+                newDir = plastPwd;
             else
                 cerr << "smash error: cd: OLDPWD not set" << endl;
         }
-        else if (getArgs()[1] == "..")
+        else if (getArgs()[1] == ".."){
             newDir = dirname(getcwd(NULL, 0));
-        else
+            lessArg = true;
+        }
+           
+        else{
             newDir = strdup(getArgs()[1].c_str());
+            lessArg = true;
+        }
+            
     }
-
+    
     // 2 args or more
     else if (getArgCount() > CD_COMMAND_ARGS_NUM){
         cerr << "smash error: cd: too many arguments" << endl;
@@ -501,9 +529,12 @@ void ChangeDirCommand::execute() {
 
     // Change directory using chdir
     if (newDir != nullptr){
-        *plastPwd = getcwd(NULL, 0);
+        smash.setPlastPwdPtr(getcwd(NULL, 0));
         chdir(newDir);
     }
+    if (lessArg)
+        free(newDir);
+
 }
 
 
@@ -626,6 +657,9 @@ void ExternalCommand::runSimpleCommand(const string& cmd) {
         args[i] = strdup(tokens[i].c_str());
     }
     args[tokens.size()] = nullptr;
+
+    // Free allocated memory from parent process 
+    delete this;
 
     // Execute the command using execvp
     execvp(args[0], args);
@@ -760,6 +794,7 @@ void RedirectionCommand::execute() {
         close(outputFile);
         //free the allocated memory
         free(const_cast<char*>(command));
+        free(const_cast<char*>(file));
         exit(1);
     }
 
@@ -770,6 +805,7 @@ void RedirectionCommand::execute() {
 
         //free the allocated memory
         free(const_cast<char*>(command));
+        free(const_cast<char*>(file));
     }
 }
 
@@ -838,6 +874,7 @@ void GetUserCommand::printUserByPid(pid_t pid) {
             cout << "failed to get the information for GID: " << gid << endl;
     }
 }
+
 
 /* C'tor for WatchCommand command class */
 WatchCommand::WatchCommand(const char *origin_cmd_line, const char *cmd_line) : Command(origin_cmd_line, cmd_line) {}
@@ -915,6 +952,7 @@ void WatchCommand::updateInterval(string value, int& interval){
     if (interval <= 0)
         throw InvalidInterval();
 }
+
 
 /* C'tor for pipe command class */
 PipeCommand::PipeCommand(const char *origin_cmd_line, const char *cmd_line) : Command(origin_cmd_line, cmd_line){}
@@ -1075,6 +1113,9 @@ void JobsList::removeJobById(int jobId){
 
     // Remove given job.
     if (it != m_jobEntries->end()) {
+        // Free allocated memory of command 
+        delete it->getCommand();
+
         m_jobEntries->erase(it, m_jobEntries->end());
         m_numRunningJobs--;
 
@@ -1093,8 +1134,11 @@ void JobsList::removeFinishedJobs(){
         pid_t result = waitpid(it->getProcessID(), &status, WNOHANG);
 
         // The child process of this job has terminated - Erase it from the list.
-        if (result == it->getProcessID())
+        if (result == it->getProcessID()){
+            // Free allocated memory of command 
+            delete it->getCommand();
             it = m_jobEntries->erase(it);
+        }
         else{
             // Update the highest job ID
             if (it->getJobID() > highestJobId) 

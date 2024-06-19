@@ -1,1 +1,1 @@
-s='sleep' 
+ch='chprompt'

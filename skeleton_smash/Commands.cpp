@@ -896,7 +896,8 @@ void PipeCommand::execute() {
         c = '&';
 
     // Split the commands
-    string command1 = m_cmd_string.substr(0, m_cmd_string.find_first_of(c));
+    string command1 = (isErr ? m_cmd_string.substr(0, m_cmd_string.find_first_of(c)-1)
+            : m_cmd_string.substr(0, m_cmd_string.find_first_of(c)));
     string command2 = m_cmd_string.substr(m_cmd_string.find_first_of(c) + 1);
     command1 = _trim(command1);
     command2 = _trim(command2);
@@ -944,8 +945,8 @@ void PipeCommand::execute() {
 //        close(fd[0]);
 //        return;
 //    }
-    char buffer[100];
-    ssize_t size = read(fd[0], buffer, 100);
+    char buffer[BIG_NUMBER];
+    ssize_t size = read(fd[0], buffer, BIG_NUMBER);
     close(fd[0]);
     buffer[size] = '\0';
     //cout << "buffer: " << buffer << endl;

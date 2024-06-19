@@ -13,6 +13,7 @@
 #define DEFAULT_NUM_RUNNING_JOBS (0)
 #define CHILD_ID (0)
 #define ERROR_VALUE (-1)
+#define BIG_NUMBER (1000)
 
 using namespace std;
 

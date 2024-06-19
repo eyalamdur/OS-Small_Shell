@@ -451,8 +451,6 @@ void aliasCommand::execute() {
     else{
         m_cmd_string = _trim(m_cmd_string);
         string first = command.substr(0, command.find_first_of(" \n"));
-        //cout << "m_cmd_line:~" << m_cmd_string << "~" << endl;
-        //cout << regex_match(m_cmd_string, aliasRegex) << endl;
         if (regex_match(m_cmd_string, aliasRegex)){
             smash.addAlias(name, command);
             //smash.printAlias();

@@ -931,7 +931,6 @@ void PipeCommand::execute() {
     //parent process
     int status;
     waitpid(pid1, &status, 0);
-    //cout << "Parent process" << endl;
     close(fd[1]);
 //    if (dup2(fd[0], STDIN_FILENO) < 0) { // fd[0] is the reading end
 //        cout << "dup2 failed" << endl;

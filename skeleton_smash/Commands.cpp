@@ -440,7 +440,6 @@ Command* aliasCommand::clone() const {
 }
 
 void aliasCommand::execute() {
-    //cout << "aliascommand" << endl;
     const regex aliasRegex("^alias [a-zA-Z0-9_]+='[^']*'$");
     SmallShell &smash = SmallShell::getInstance();
 

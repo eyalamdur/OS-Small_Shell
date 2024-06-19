@@ -14,6 +14,7 @@
 #define DEFAULT_NUM_RUNNING_JOBS (0)
 #define CHILD_ID (0)
 #define ERROR_VALUE (-1)
+#define BIG_NUMBER (1000)
 
 using namespace std;
 
@@ -65,8 +66,7 @@ public:
 class PipeCommand : public Command {
     // TODO: Add your data members
 public:
-    PipeCommand(const char *cmd_line);
-
+    PipeCommand(const char* origin_cmd_line, const char *cmd_line);
 
     virtual ~PipeCommand() {}
 

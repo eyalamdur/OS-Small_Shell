@@ -941,7 +941,6 @@ void PipeCommand::execute() {
     close(fd[0]);
     buffer[size] = '\0';
     const char* commandToExecute = strdup((command2 + " " + string(_trim(buffer))).c_str());
-    //cout << "command to execute: " << commandToExecute << "~" << endl;
     //const char* commandToExecute = strdup(command2.c_str());
     smash.executeCommand(commandToExecute);
     free(const_cast<char*>(commandToExecute));

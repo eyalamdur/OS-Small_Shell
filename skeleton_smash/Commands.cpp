@@ -12,6 +12,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <syscall.h>
 #include <fstream>
 #include <fcntl.h>
 #include <pwd.h>
@@ -415,11 +416,11 @@ void QuitCommand::execute() {
     if (getArgCount() > 1 && getArgs()[1].compare("kill") == 0){
         // Print a message & joblist before exiting
         if (m_jobsList != nullptr){
-            cout << "smash: smashing " << m_jobsList->getNumRunningJobs() << " jobs:" << endl;
+            cout << "smash: sending SIGKILL signal to " << m_jobsList->getNumRunningJobs() << " jobs:" << endl;
             m_jobsList->printJobsListWithPid();
         }
         else
-            cout << "smash: smashing 0 jobs:" << endl;
+            cout << "smash: sending SIGKILL signal to 0 jobs:" << endl;
             
         // Print the list of jobs that were killed
         while(m_jobsList != nullptr && !m_jobsList->isEmpty())
@@ -675,7 +676,7 @@ void ExternalCommand::runComplexCommand(const string& cmd) {
     execlp("bash", "bash", "-c", cmd.c_str(), (char *)nullptr);
 
     // If execlp returns, an error occurred
-    cerr << "External command execution failed" << std::endl;
+    cerr << "External command execution failed" << endl;
     exit(1);
 }
 
@@ -699,60 +700,74 @@ ListDirCommand::ListDirCommand(const char* origin_cmd_line, const char *cmd_line
 
 /* Execute method to get and print theListDirCommand */
 void ListDirCommand::execute() {
+    // Error - to many arguments
     if (getArgCount() > LIST_DIR_COMMAND_ARGS_NUM) {
         cout << "smash error: listdir: too many arguments" << endl;
         return;
     }
-
+    
     vector<string> args = getArgs();
     const char* directoryPath = (getArgCount() == 2) ? args[1].c_str() : ".";
-
-    DIR* dir = opendir(directoryPath);
-    if (!dir) {
-        perror("opendir");
+    
+    // Open directory - return if failed.
+    int fd = open(directoryPath, O_RDONLY | O_DIRECTORY);
+    if (fd < 0) {
+        perror("open");
         return;
     }
 
-    struct dirent *entry;
-    struct stat fileStat;
-    size_t buffer_size = DEFAULT_BUFFER_SIZE;
-    char buffer[buffer_size];
+    // Trying to read directory data.
+    vector<char> buffer(DEFAULT_BUFFER_SIZE);
+    int nread = syscall(SYS_getdents, fd, buffer.data(), buffer.size());
+    if (nread < 0) {
+        perror("getdents");
+        return;
+    }
+
+    // Sort files in alphabetically order
     vector<string> entries;
+    sortEntreysAlphabetically(entries, nread, buffer); 
 
-    // Rearrange order to be alphabetic
-    while ((entry = readdir(dir)) != NULL) 
-        entries.push_back(entry->d_name);
-
-    // Sort the directory entries alphabetically
-    sort(entries.begin(), entries.end());
-
+    // Print each file in directory.
     for (const auto& entryName : entries) {
         string fullPath = string(directoryPath) + "/" + entryName;
-        if (lstat(fullPath.c_str(), &fileStat) != 0) {
-            perror("lstat");
-            continue;
-        }
+        struct stat fileStat;
 
-        // Discover type of file/dir/link
+        // Error opening file
+        if (lstat(fullPath.c_str(), &fileStat) != 0) 
+            continue;
+
+        // Classify file mode
         if (S_ISREG(fileStat.st_mode))
             cout << "file: " << entryName << endl;
-        else if (S_ISDIR(fileStat.st_mode)) 
+        else if (S_ISDIR(fileStat.st_mode))
             cout << "directory: " << entryName << endl;
         else if (S_ISLNK(fileStat.st_mode)) {
-            ssize_t len = readlink(fullPath.c_str(), buffer, buffer_size - 1);
-            if (len != -1) {
-                buffer[len] = '\0';
-                cout << "link: " << entryName << " -> " << buffer << endl;
-            } 
-            else
+            char link_buffer[buffer.size()];
+            ssize_t len = readlink(fullPath.c_str(), link_buffer, buffer.size() - 1);
+            if (len != ERROR_VALUE) {
+                link_buffer[len] = '\0';
+                cout << "link: " << entryName << " -> " << link_buffer << endl;
+            } else {
                 perror("readlink");
+            }
         }
     }
 
-    closedir(dir);
-
+    close(fd);
 }
 
+void ListDirCommand::sortEntreysAlphabetically(vector<string>& dir, int nread, vector<char> buffer){
+    // Rearrange order to be alphabetic
+    for (int bpos = 0; bpos < nread;){
+        linux_dirent* d = (linux_dirent*)(buffer.data() + bpos);
+        dir.push_back(d->d_name);
+        bpos += d->d_reclen;
+    }
+
+    // Sort the directory files alphabetically
+    sort(dir.begin(), dir.end());
+}
 
 RedirectionCommand::RedirectionCommand(const char *origin_cmd_line, const char *cmd_line) :
 Command (origin_cmd_line, cmd_line) {}
@@ -827,7 +842,7 @@ void GetUserCommand::execute() {
         pid_t pid = static_cast<pid_t>(stoi(getArgs()[1]));
         printUserByPid(pid);
     }
-    catch (const std::exception &e){
+    catch (const exception &e){
         cout << "smash error: getuser: process " << getArgs()[1] << " does not exist" << endl;
     }
 }
@@ -845,16 +860,16 @@ void GetUserCommand::printUserByPid(pid_t pid) {
     gid_t gid = ERROR_VALUE;
 
     // Read the file line by line
-    std::string line;
-    while (std::getline(statusFile, line)) {
+    string line;
+    while (getline(statusFile, line)) {
         if (line.substr(0, 4) == "Uid:") {
-            std::istringstream input(line);
-            std::string uidLabel;
+            istringstream input(line);
+            string uidLabel;
             input >> uidLabel >> uid;
         }
         if (line.substr(0, 4) == "Gid:") {
-            std::istringstream input(line);
-            std::string gidLabel;
+            istringstream input(line);
+            string gidLabel;
             input >> gidLabel >> gid;
         }
     }

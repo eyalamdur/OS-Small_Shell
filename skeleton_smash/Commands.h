@@ -226,12 +226,20 @@ public:
 };
 
 class ListDirCommand : public BuiltInCommand {
+protected:
+    struct linux_dirent {
+        long d_ino;
+        off_t d_off;
+        unsigned short d_reclen;
+        char d_name[];
+    };
 public:
     ListDirCommand(const char* origin_cmd_line, const char *cmd_line);
 
     virtual ~ListDirCommand() {}
 
     void execute() override;
+    void sortEntreysAlphabetically(vector<string>& dir, int nread, vector<char> buffer);
 };
 
 class GetUserCommand : public BuiltInCommand {

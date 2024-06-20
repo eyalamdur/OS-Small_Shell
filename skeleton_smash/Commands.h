@@ -4,6 +4,8 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <memory>
+
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 #define CD_COMMAND_ARGS_NUM (2)
@@ -100,15 +102,14 @@ public:
 
 class ChangeDirCommand : public BuiltInCommand {
 public:
-    ChangeDirCommand(const char* origin_cmd_line, const char *cmd_line, char **plastPwd);
+    ChangeDirCommand(const char* origin_cmd_line, const char *cmd_line, char *plastPwd);
 
-
-    virtual ~ChangeDirCommand() {}
+    ~ChangeDirCommand() override;
 
     void execute() override;
 
 protected:
-    char **plastPwd; // Pointer to the previous working directory
+    char *plastPwd; // Pointer to the previous working directory
 };
 
 class GetCurrDirCommand : public BuiltInCommand {
@@ -295,6 +296,8 @@ public:
     string getPrompt() const;
     bool getStopWatch() const;
     pid_t getForegroundProcess() const;
+    void setPlastPwdPtr(char * newPwd);
+    char* getPlastPwdPtr();
 
     void addAlias (string name, string command);
     void removeAlias (vector<string>args);
@@ -317,7 +320,6 @@ public:
     void executeCommand(const char *cmd_line);
     void printToTerminal(string line);
 
-    char** getPlastPwdPtr();
     JobsList* getJobsList();
 };
 

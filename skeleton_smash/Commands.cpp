@@ -806,19 +806,11 @@ void RedirectionCommand::execute() {
             outputFile = open (file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     
         if (outputFile < 0){
-<<<<<<< HEAD
-            cerr << "failed to open" << endl;
-            exit(0);
-        }
-        if (dup2(outputFile, STDOUT_FILENO) < 0){
-            cerr << "dup2 fail" << endl;
-=======
             perror("failed to open");
             exit(0);
         }
         if (dup2(outputFile, STDOUT_FILENO) < 0){
             perror("dup2 fail");
->>>>>>> getuser
             close(outputFile);
             exit(0);
         }
@@ -849,13 +841,6 @@ BuiltInCommand(origin_cmd_line, cmd_line){}
 void GetUserCommand::execute() {
     if (getArgCount() > 2){
         cerr << "smash error: getuser: too many arguments" << endl;
-<<<<<<< HEAD
-        return;
-    }
-    if (getArgCount() == 1) {
-        cerr << "smash error: getuser: too few arguments" << endl;
-=======
->>>>>>> getuser
         return;
     }
 
@@ -912,16 +897,9 @@ void GetUserCommand::printUserByPid(pid_t pid) {
         cout << "User: " << user->pw_name << endl;
         cout << "Group: " << group->gr_name << endl;
     }
-    else{
-<<<<<<< HEAD
-        if (!user)
-            cerr << "failed to get the information for UID: " << uid << endl;
-        if (!group)
-            cerr << "failed to get the information for GID: " << gid << endl;
-=======
+    else
         throw exception();
->>>>>>> getuser
-    }
+
 }
 
 
@@ -1025,22 +1003,14 @@ void PipeCommand::execute() {
     // Create pipe
     int fd[2];
     if (pipe(fd) < 0) {
-<<<<<<< HEAD
-        cerr << "pipe failed" << endl;
-=======
         perror ("pipe failed");
->>>>>>> getuser
         return;
     }
 
     // Fork the first child (command1)
     pid_t pid1 = fork();
     if (pid1 < 0) {
-<<<<<<< HEAD
-        cerr << "fork failed" << endl;
-=======
         perror("fork failed");
->>>>>>> getuser
         close(fd[0]);
         close(fd[1]);
         return;

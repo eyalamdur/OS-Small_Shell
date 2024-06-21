@@ -972,7 +972,7 @@ void PipeCommand::execute() {
             : m_cmd_string.substr(0, m_cmd_string.find_first_of(c)));
     string command2 = m_cmd_string.substr(m_cmd_string.find_first_of(c) + 1);
     command1 = _trim(command1);
-    command2 = _trim(command2);
+    command2 = _trim(command2) + " ";
 
     // Create pipe
     int fd[2];
@@ -991,6 +991,7 @@ void PipeCommand::execute() {
     }
     // First child process (command1)
     if (pid1 == 0) {
+        setpgrp();
         close(fd[0]);
         int outputChannel = (isErr ? STDERR_FILENO :  STDOUT_FILENO) ;
         if (dup2(fd[1], outputChannel) < 0) { //fd[1] is the writing end
@@ -999,28 +1000,62 @@ void PipeCommand::execute() {
             exit(1);
         }
         close(fd[1]);
+        //write(fd[1], command2.c_str() , BIG_NUMBER);
         const char* commandToExecute = strdup(command1.c_str());
         smash.executeCommand(commandToExecute);
         free(const_cast<char*>(commandToExecute));
         exit(0);
     }
-    //parent process
+
+
+
+    pid_t pid2 = fork();
+    if (pid1 < 0) {
+        cout << "fork failed" << endl;
+        close(fd[0]);
+        close(fd[1]);
+        return;
+    }
+    if (pid2 == 0){
+        setpgrp();
+        close(fd[1]);
+        if (dup2(fd[0], STDIN_FILENO) < 0){
+            cout << "failed to dup2()" <<endl;
+            close(fd[0]);
+            return;
+        }
+//        char** argv = new char* [4];
+//        argv[0] = const_cast<char*>("/bin/bash");
+//        argv[1] = const_cast<char*>("-c");
+//        argv[2] = const_cast<char*>(command2.c_str());
+//        argv[3] = nullptr;
+        close(fd[0]);
+        smash.executeCommand(command2.c_str());
+//        execvp(command2.c_str(), nullptr);
+//        cout << "execvp failed" << endl;
+        exit(1);
+    }
     int status;
-    waitpid(pid1, &status, 0);
     close(fd[1]);
+    close(fd[1]);
+    waitpid(pid1, &status, 0);
+    waitpid(pid2, &status, 0);
+    cout << "finished func" << endl;
+    //parent process
+
 //    if (dup2(fd[0], STDIN_FILENO) < 0) { // fd[0] is the reading end
 //        cout << "dup2 failed" << endl;
 //        close(fd[0]);
 //        return;
 //    }
-    char buffer[BIG_NUMBER];
-    ssize_t size = read(fd[0], buffer, BIG_NUMBER);
-    close(fd[0]);
-    buffer[size] = '\0';
-    const char* commandToExecute = strdup((command2 + " " + string(_trim(buffer))).c_str());
-    //const char* commandToExecute = strdup(command2.c_str());
-    smash.executeCommand(commandToExecute);
-    free(const_cast<char*>(commandToExecute));
+//    char buffer[BIG_NUMBER];
+//    ssize_t size = read(fd[0], buffer, BIG_NUMBER);
+//    close(fd[0]);
+//    buffer[size] = '\0';
+//    const char* commandToExecute = strdup((command2 + " " + string(_trim(buffer))).c_str());
+//    //const char* commandToExecute = strdup(command2.c_str());
+//    smash.executeCommand(commandToExecute);
+//    free(const_cast<char*>(commandToExecute));
 }
 
 /*---------------------------------------------------------------------------------------------------*/

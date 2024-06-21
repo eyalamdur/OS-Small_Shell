@@ -240,6 +240,7 @@ public:
 
     void execute() override;
     void sortEntreysAlphabetically(vector<string>& dir, int nread, vector<char> buffer);
+    void printContent(vector<string> entries, const char* directoryPath, vector<char> buffer, bool files);
 };
 
 class GetUserCommand : public BuiltInCommand {

@@ -563,6 +563,8 @@ void ForegroundCommand::execute() {
     else if (getArgs().size() == 2) {
         try {
             jobID = stoi(getArgs()[1]);
+            if (jobID < 0)
+                stoi("a");  // Throw error
             if (m_jobsList->getJobById(jobID) == nullptr) {
                 cout << "smash error: fg: job-id " << jobID << " does not exist" << endl;
                 return;
@@ -728,31 +730,9 @@ void ListDirCommand::execute() {
     vector<string> entries;
     sortEntreysAlphabetically(entries, nread, buffer); 
 
-    // Print each file in directory.
-    for (const auto& entryName : entries) {
-        string fullPath = string(directoryPath) + "/" + entryName;
-        struct stat fileStat;
-
-        // Error opening file
-        if (lstat(fullPath.c_str(), &fileStat) != 0) 
-            continue;
-
-        // Classify file mode
-        if (S_ISREG(fileStat.st_mode))
-            cout << "file: " << entryName << endl;
-        else if (S_ISDIR(fileStat.st_mode))
-            cout << "directory: " << entryName << endl;
-        else if (S_ISLNK(fileStat.st_mode)) {
-            char link_buffer[buffer.size()];
-            ssize_t len = readlink(fullPath.c_str(), link_buffer, buffer.size() - 1);
-            if (len != ERROR_VALUE) {
-                link_buffer[len] = '\0';
-                cout << "link: " << entryName << " -> " << link_buffer << endl;
-            } else {
-                perror("readlink");
-            }
-        }
-    }
+    // Print files first and than the rest
+    printContent(entries, directoryPath, buffer, true);
+    printContent(entries, directoryPath, buffer, false);
 
     close(fd);
 }
@@ -768,6 +748,35 @@ void ListDirCommand::sortEntreysAlphabetically(vector<string>& dir, int nread, v
     // Sort the directory files alphabetically
     sort(dir.begin(), dir.end());
 }
+
+void ListDirCommand::printContent(vector<string> entries, const char* directoryPath, vector<char> buffer, bool files){
+        // Print each file in directory.
+    for (const auto& entryName : entries) {
+        string fullPath = string(directoryPath) + "/" + entryName;
+        struct stat fileStat;
+
+        // Error opening file
+        if (lstat(fullPath.c_str(), &fileStat) != 0) 
+            continue;
+
+        // Classify file mode
+        if (files && S_ISREG(fileStat.st_mode))
+            cout << "file: " << entryName << endl;
+        else if (!files && S_ISDIR(fileStat.st_mode))
+            cout << "directory: " << entryName << endl;
+        else if (!files && S_ISLNK(fileStat.st_mode)) {
+            char link_buffer[buffer.size()];
+            ssize_t len = readlink(fullPath.c_str(), link_buffer, buffer.size() - 1);
+            if (len != ERROR_VALUE) {
+                link_buffer[len] = '\0';
+                cout << "link: " << entryName << " -> " << link_buffer << endl;
+            } else {
+                perror("readlink");
+            }
+        }
+    }
+}
+
 
 RedirectionCommand::RedirectionCommand(const char *origin_cmd_line, const char *cmd_line) :
 Command (origin_cmd_line, cmd_line) {}

@@ -107,7 +107,8 @@ const set<string> SmallShell::COMMANDS = {"chprompt", "showpid", "pwd", "cd", "j
 };
 
 SmallShell::SmallShell() : m_fg_process(ERROR_VALUE), m_prompt("smash"),  m_plastPwd(nullptr),  
-                        m_jobList(new JobsList()), m_proceed(true), m_stopWatch(false), m_alias(new map<string, string>){}
+                        m_jobList(new JobsList()), m_proceed(true), m_stopWatch(false), m_alias(new map<string, string>),
+                        m_aliasToPrint(vector<string>()) {}
 
 SmallShell::~SmallShell() {
     if (m_plastPwd)
@@ -149,16 +150,23 @@ void SmallShell::quit() {
 }
 
 void SmallShell::addAlias(string name, string command) {
-    if (m_alias->find(name) == m_alias->end() && COMMANDS.find(name) == COMMANDS.end())
+    if (m_alias->find(name) == m_alias->end() && COMMANDS.find(name) == COMMANDS.end()){
         (*m_alias)[name] = command;
+        m_aliasToPrint.push_back(name);
+        m_aliasToPrint.push_back(command);
+    }
     else
         cerr << "smash error: alias: " << name << " already exists or is a reserved command" << endl;
 }
 
 void SmallShell::removeAlias(vector<string> args) {
     for (int i = 1; i < (int)args.size(); i++){
-        if (m_alias->find(args[i]) != m_alias->end())
+        auto it = m_alias->find(args[i]);
+        if (it != m_alias->end()){
+            m_aliasToPrint.erase(remove(m_aliasToPrint.begin(), m_aliasToPrint.end(),it->first), m_aliasToPrint.end());
+            m_aliasToPrint.erase(remove(m_aliasToPrint.begin(), m_aliasToPrint.end(),it->second), m_aliasToPrint.end());
             m_alias->erase(args[i]);
+        }
         else{
             cerr << "smash error: unalias: " << args[i] << " alias does not exist" << endl;
             break;
@@ -167,9 +175,8 @@ void SmallShell::removeAlias(vector<string> args) {
 }
 
 void SmallShell::printAlias() {
-    for (auto& pair : *m_alias){
-        cout << pair.first << "='" << pair.second << "'" << endl;
-    }
+    for (int i = 0; i < m_aliasToPrint.size(); i+=2)
+        cout << m_aliasToPrint[i] << "='" << m_aliasToPrint[i+1] << "'" << endl;
 }
 
 char* SmallShell::extractCommand(const char* cmd_l,string &firstWord){
@@ -467,8 +474,6 @@ aliasCommand::aliasCommand(const char* origin_cmd_line, const char *cmd_line) : 
 void aliasCommand::execute() {
     const regex aliasRegex("^alias [a-zA-Z0-9_]+='[^']*'$");
     SmallShell &smash = SmallShell::getInstance();
-    cout << "m_name: " << m_name << endl;
-    cout << "m_command: " << m_command << endl;
     // Print alias commands list
     if (getArgCount() == 1)
         smash.printAlias();

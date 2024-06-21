@@ -161,17 +161,21 @@ void SmallShell::addAlias(string name, string command) {
 
 void SmallShell::removeAlias(vector<string> args) {
     for (int i = 1; i < (int)args.size(); i++){
+        // checking if the arguments are aliases
         auto it = m_alias->find(args[i]);
+        //case an argument is an alias
         if (it != m_alias->end()){
+            //finding the alias in the printing vector
             auto aliasIt = find(m_aliasToPrint.begin(), m_aliasToPrint.end(), it->first);
+            //removing the match 'name', 'command' from the printing vector
             if (aliasIt != m_aliasToPrint.end() && next(aliasIt) != m_aliasToPrint.end()){
                 m_aliasToPrint.erase(next(aliasIt));
                 m_aliasToPrint.erase(aliasIt);
             }
-//            m_aliasToPrint.erase(remove(it->first), m_aliasToPrint.end());
-//            m_aliasToPrint.erase(remove(m_aliasToPrint.begin(), m_aliasToPrint.end(),it->second), m_aliasToPrint.end());
+            //removing the tuple (name,command) from the map
             m_alias->erase(args[i]);
         }
+        //case an argument isn't an alias
         else{
             cerr << "smash error: unalias: " << args[i] << " alias does not exist" << endl;
             break;
@@ -180,6 +184,7 @@ void SmallShell::removeAlias(vector<string> args) {
 }
 
 void SmallShell::printAlias() {
+    //printing the aliases by the order of appending
     for (int i = 0; i < (int)m_aliasToPrint.size(); i+=2)
         cout << m_aliasToPrint[i] << "='" << m_aliasToPrint[i+1] << "'" << endl;
 }

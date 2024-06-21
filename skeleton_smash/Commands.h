@@ -6,6 +6,7 @@
 #include <set>
 #include <memory>
 
+
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 #define CD_COMMAND_ARGS_NUM (2)
@@ -293,6 +294,7 @@ private:
     bool m_proceed;
     bool m_stopWatch;
     map<string, string>* m_alias;
+    vector<string> m_aliasToPrint;
 
 public:
     const static set<string> COMMANDS;

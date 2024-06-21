@@ -175,7 +175,7 @@ void SmallShell::removeAlias(vector<string> args) {
 }
 
 void SmallShell::printAlias() {
-    for (int i = 0; i < m_aliasToPrint.size(); i+=2)
+    for (int i = 0; i < (int)m_aliasToPrint.size(); i+=2)
         cout << m_aliasToPrint[i] << "='" << m_aliasToPrint[i+1] << "'" << endl;
 }
 
@@ -208,7 +208,9 @@ char* SmallShell::extractCommand(const char* cmd_l,string &firstWord){
 Command *SmallShell::CreateCommand(const char *cmd_line) {
     string firstWord;
     char* newCmdLine = extractCommand(cmd_line, firstWord);
-    if (string(newCmdLine).find('>') != string::npos)
+    if (firstWord.compare("alias") == 0)
+        return new aliasCommand(cmd_line, newCmdLine);
+    else if (string(newCmdLine).find('>') != string::npos)
         return new RedirectionCommand(cmd_line, newCmdLine);
     else if (string(newCmdLine).find('|') != string::npos)
         return new PipeCommand(cmd_line, newCmdLine);
@@ -218,12 +220,10 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new ChangePromptCommand(cmd_line, newCmdLine);
     else if (firstWord.compare("showpid") == 0)
         return new ShowPidCommand(cmd_line, newCmdLine);
-    else if (firstWord.compare("cd") == 0) 
+    else if (firstWord.compare("cd") == 0)
         return new ChangeDirCommand(cmd_line, newCmdLine, getPlastPwdPtr());
-    else if (firstWord.compare("quit") == 0) 
+    else if (firstWord.compare("quit") == 0)
         return new QuitCommand(cmd_line, newCmdLine, getJobsList());
-    else if (firstWord.compare("alias") == 0)
-        return new aliasCommand(cmd_line, newCmdLine);
     else if (firstWord.compare("unalias") == 0)
         return new unaliasCommand(cmd_line, newCmdLine);
     else if (firstWord.compare("jobs") == 0) 

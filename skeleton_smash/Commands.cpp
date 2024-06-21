@@ -446,6 +446,13 @@ aliasCommand::aliasCommand(const char* origin_cmd_line, const char *cmd_line) : 
         command[i] = m_cmd_string[equals + 2 + i];
 
     command[length] = '\0';
+    //trimming the command line from '&' and ' '
+    int j = 1;
+    while (command[length-j] == '\'' || command[length-j] == ' '){
+        command[length-j] = '\0';
+        j++;
+    }
+
     length = equals - space - 1;
     
     char name[length + 1];
@@ -460,7 +467,8 @@ aliasCommand::aliasCommand(const char* origin_cmd_line, const char *cmd_line) : 
 void aliasCommand::execute() {
     const regex aliasRegex("^alias [a-zA-Z0-9_]+='[^']*'$");
     SmallShell &smash = SmallShell::getInstance();
-
+    cout << "m_name: " << m_name << endl;
+    cout << "m_command: " << m_command << endl;
     // Print alias commands list
     if (getArgCount() == 1)
         smash.printAlias();

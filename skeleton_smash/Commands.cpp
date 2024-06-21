@@ -806,11 +806,19 @@ void RedirectionCommand::execute() {
             outputFile = open (file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     
         if (outputFile < 0){
+<<<<<<< HEAD
             cerr << "failed to open" << endl;
             exit(0);
         }
         if (dup2(outputFile, STDOUT_FILENO) < 0){
             cerr << "dup2 fail" << endl;
+=======
+            perror("failed to open");
+            exit(0);
+        }
+        if (dup2(outputFile, STDOUT_FILENO) < 0){
+            perror("dup2 fail");
+>>>>>>> getuser
             close(outputFile);
             exit(0);
         }
@@ -841,12 +849,16 @@ BuiltInCommand(origin_cmd_line, cmd_line){}
 void GetUserCommand::execute() {
     if (getArgCount() > 2){
         cerr << "smash error: getuser: too many arguments" << endl;
+<<<<<<< HEAD
         return;
     }
     if (getArgCount() == 1) {
         cerr << "smash error: getuser: too few arguments" << endl;
+=======
+>>>>>>> getuser
         return;
     }
+
     try {
         pid_t pid = static_cast<pid_t>(stoi(getArgs()[1]));
         printUserByPid(pid);
@@ -856,21 +868,30 @@ void GetUserCommand::execute() {
     }
 }
 
+// changes and additions been made according to piazza @92 and @57_f3 @70
 void GetUserCommand::printUserByPid(pid_t pid) {
     //building the path to the status file using the given pid
     string status = "/proc/" + to_string(pid) + "/status";
     // opening the status file
-    ifstream statusFile(status);
-    if (!statusFile.is_open())
-        throw exception();
-
+    int fileDirectory = open(status.c_str(), O_RDONLY);
+    char buffer [BIG_NUMBER];
+    string statusFile;
+    ssize_t size;
+    do {
+        size = read(fileDirectory, buffer, BIG_NUMBER-1);
+        buffer[size] = '\0';
+        statusFile += buffer;
+    }
+    while (size > 0);
+    close (fileDirectory);
     // Variables to store UID and GID
     uid_t uid = ERROR_VALUE;
     gid_t gid = ERROR_VALUE;
 
     // Read the file line by line
+    istringstream lines (statusFile);
     string line;
-    while (getline(statusFile, line)) {
+    while (getline(lines, line)) {
         if (line.substr(0, 4) == "Uid:") {
             istringstream input(line);
             string uidLabel;
@@ -892,10 +913,14 @@ void GetUserCommand::printUserByPid(pid_t pid) {
         cout << "Group: " << group->gr_name << endl;
     }
     else{
+<<<<<<< HEAD
         if (!user)
             cerr << "failed to get the information for UID: " << uid << endl;
         if (!group)
             cerr << "failed to get the information for GID: " << gid << endl;
+=======
+        throw exception();
+>>>>>>> getuser
     }
 }
 
@@ -1000,14 +1025,22 @@ void PipeCommand::execute() {
     // Create pipe
     int fd[2];
     if (pipe(fd) < 0) {
+<<<<<<< HEAD
         cerr << "pipe failed" << endl;
+=======
+        perror ("pipe failed");
+>>>>>>> getuser
         return;
     }
 
     // Fork the first child (command1)
     pid_t pid1 = fork();
     if (pid1 < 0) {
+<<<<<<< HEAD
         cerr << "fork failed" << endl;
+=======
+        perror("fork failed");
+>>>>>>> getuser
         close(fd[0]);
         close(fd[1]);
         return;

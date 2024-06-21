@@ -163,8 +163,13 @@ void SmallShell::removeAlias(vector<string> args) {
     for (int i = 1; i < (int)args.size(); i++){
         auto it = m_alias->find(args[i]);
         if (it != m_alias->end()){
-            m_aliasToPrint.erase(remove(m_aliasToPrint.begin(), m_aliasToPrint.end(),it->first), m_aliasToPrint.end());
-            m_aliasToPrint.erase(remove(m_aliasToPrint.begin(), m_aliasToPrint.end(),it->second), m_aliasToPrint.end());
+            auto aliasIt = find(m_aliasToPrint.begin(), m_aliasToPrint.end(), it->first);
+            if (aliasIt != m_aliasToPrint.end() && next(aliasIt) != m_aliasToPrint.end()){
+                m_aliasToPrint.erase(next(aliasIt));
+                m_aliasToPrint.erase(aliasIt);
+            }
+//            m_aliasToPrint.erase(remove(it->first), m_aliasToPrint.end());
+//            m_aliasToPrint.erase(remove(m_aliasToPrint.begin(), m_aliasToPrint.end(),it->second), m_aliasToPrint.end());
             m_alias->erase(args[i]);
         }
         else{

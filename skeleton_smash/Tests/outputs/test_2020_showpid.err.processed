@@ -1,0 +1,6 @@
+grep: smash: No such file or directory
+grep: pid: No such file or directory
+grep: is: No such file or directory
+grep: 21732: No such file or directory
+cat: my_pid: No such file or directory
+rm: cannot remove 'my_pid': No such file or directory

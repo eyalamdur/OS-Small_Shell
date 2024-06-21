@@ -18,7 +18,7 @@ smash> smash> smash> smash> [1] timeout 5 sleep 100&
 [3] timeout 2 sleep 300&
 [4] timeout 7 sleep 400&
 smash> smash> smash> smash: got ctrl-C
-smash: process 23528 was killed.
+smash: process 4435 was killed.
 smash> smash> smash: got ctrl-C
-smash: process 23657 was killed.
+smash: process 4546 was killed.
 smash> smash: sending SIGKILL signal to 0 jobs:

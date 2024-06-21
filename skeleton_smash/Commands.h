@@ -74,6 +74,8 @@ public:
     virtual ~PipeCommand() {}
 
     void execute() override;
+    void createTempFile(string content);
+    void deleteTempFile();
 };
 
 class WatchCommand : public Command {

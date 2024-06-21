@@ -1,2 +1,18 @@
-terminate called after throwing an instance of 'std::invalid_argument'
-  what():  stoi
+smash error: kill: job-id 1 does not exist
+smash error: kill: job-id -1 does not exist
+smash error: kill: invalid arguments: Success
+smash error: kill: job-id 1 does not exist
+smash error: kill: invalid arguments: Success
+smash error: kill: invalid arguments: Success
+smash error: kill: invalid arguments: Success
+smash error: kill: invalid arguments: Success
+smash error: kill: invalid arguments: Success
+smash error: kill: invalid arguments: Success
+smash error: kill: invalid arguments: Success
+smash error: kill: job-id 1 does not exist
+smash error: kill: job-id 1 does not exist
+kill error: Invalid argument
+smash error: kill: invalid arguments: Invalid argument
+smash error: kill: invalid arguments: Invalid argument
+kill error: Invalid argument
+runner: Timeout, killing child

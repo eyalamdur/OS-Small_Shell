@@ -1,4 +1,4 @@
-smash> smash> smash> smash> smash> smash> sleep 300& 21933
+smash> smash> smash> smash> smash> smash> sleep 300& 3997
 smash: got ctrl-C
-smash: process 21933 was killed.
-smash> sleep 100& 21931
+smash: process 3997 was killed.
+smash> sleep 100& 3995

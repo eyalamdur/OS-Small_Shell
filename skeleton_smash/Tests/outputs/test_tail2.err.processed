@@ -1,2 +1,2 @@
-tail: cannot open 'fail.txt' for reading: No such file or directory
+tail: cannot open 'fail.t' for reading: No such file or directory
 runner: Timeout, killing child

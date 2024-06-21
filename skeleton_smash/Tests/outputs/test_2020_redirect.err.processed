@@ -1,2 +1,10 @@
+smash error: kill: invalid arguments: No child processes
+smash error: kill: invalid arguments: No child processes
+failed to open: No such file or directory
+failed to open: No such file or directory
+failed to open: Permission denied
+External command execution failed: No such file or directory
 cat: new: No such file or directory
+rm: cannot remove 'new': No such file or directory
+External command execution failed: No such file or directory
 cat: new: No such file or directory

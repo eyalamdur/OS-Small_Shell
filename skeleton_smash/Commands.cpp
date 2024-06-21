@@ -271,7 +271,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
         pid_t pid = fork();
 
         if (pid == ERROR_VALUE) {
-            cerr << "Error forking process." << endl;
+            perror("Error forking process");
             delete cmd;
             return;
         }
@@ -495,7 +495,7 @@ void aliasCommand::execute() {
         if (regex_match(m_cmd_string, aliasRegex))
             smash.addAlias(m_name, m_command);
         else
-            cerr << "smash error: alias: invalid alias format" << endl;
+            perror("smash error: alias: invalid alias format");
     }
 }
 
@@ -506,7 +506,7 @@ unaliasCommand::unaliasCommand(const char* origin_cmd_line, const char *cmd_line
 void unaliasCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
     if (getArgCount() == 1){
-        cerr << "smash error: unalias: not enough arguments" << endl;
+        perror("smash error: unalias: not enough arguments");
     }
     else
         smash.removeAlias(getArgs());
@@ -531,7 +531,7 @@ void ChangeDirCommand::execute() {
             if (plastPwd != nullptr)
                 newDir = plastPwd;
             else
-                cerr << "smash error: cd: OLDPWD not set" << endl;
+                perror("smash error: cd: OLDPWD not set");
         }
         else if (getArgs()[1] == ".."){
             newDir = dirname(getcwd(NULL, 0));
@@ -547,7 +547,7 @@ void ChangeDirCommand::execute() {
     
     // 2 args or more
     else if (getArgCount() > CD_COMMAND_ARGS_NUM){
-        cerr << "smash error: cd: too many arguments" << endl;
+        perror("smash error: cd: too many arguments");
         return;
     }
 
@@ -574,7 +574,7 @@ ForegroundCommand::ForegroundCommand(const char* origin_cmd_line, const char* cm
 void ForegroundCommand::execute() {
     // Check if the jobs list is empty
     if (m_jobsList->isEmpty()) {
-        cerr << "smash error: fg: jobs list is empty" << endl;
+        perror("smash error: fg: jobs list is empty");
         return;
     }
     
@@ -594,12 +594,12 @@ void ForegroundCommand::execute() {
             }
         } 
         catch (const invalid_argument& e) {
-            cerr << "smash error: fg: invalid arguments" << endl;
+            perror("smash error: fg: invalid arguments");
             return;
         }
     } 
     else {
-        cerr << "smash error: fg: invalid arguments" << endl;
+        perror("smash error: fg: invalid arguments");
         return;
     }
 
@@ -625,29 +625,35 @@ KillCommand::KillCommand(const char* origin_cmd_line, const char *cmd_line, Jobs
 /* Execute method to kill given jobID. */
 void KillCommand::execute() {
     vector<string> args = getArgs();
-
+    int signum, jobID;
     // Validate the number of arguments
     if (args.size() != 3) {
-        cerr << "smash error: kill: invalid arguments" << endl;
+        perror("smash error: kill: invalid arguments");
         return;
     }
 
     // Get signal number and job ID from command arguments
-    int signum = stoi(args[1].substr(1));
-    int jobID = stoi(args[2]);
-
-    // Get job entry by job ID
-    JobsList::JobEntry* jobEntry = m_jobsList->getJobById(jobID);
-    if (jobEntry == nullptr) {
-        cerr << "smash error: kill: job-id " << jobID << " does not exist" << endl;
+    try{
+        signum = stoi(args[1]);
+        jobID = stoi(args[2]);
+    }
+    catch(...){
+        perror("smash error: kill: invalid arguments");
         return;
     }
 
-    // Send the specified signal to the job
-    if (kill(jobEntry->getProcessID(), signum) == 0)
-        cout << "signal number " << signum << " was sent to pid " << jobEntry->getProcessID() << endl;
-    else
-        perror("kill error");
+        // Get job entry by job ID
+        JobsList::JobEntry* jobEntry = m_jobsList->getJobById(jobID);
+        if (jobEntry == nullptr) {
+            cerr << "smash error: kill: job-id " << jobID << " does not exist" << endl;
+            return;
+        }
+
+        // Send the specified signal to the job
+        if (kill(jobEntry->getProcessID(), signum) == 0)
+            cout << "signal number " << signum << " was sent to pid " << jobEntry->getProcessID() << endl;
+        else
+            perror("kill error");
 }
 
 /*---------------------------------------------------------------------------------------------------*/
@@ -691,7 +697,7 @@ void ExternalCommand::runSimpleCommand(const string& cmd) {
     execvp(args[0], args);
 
     // Handle execvp failure
-    cerr << "External command execution failed" << endl;
+    perror("External command execution failed");
     exit(1);
 }
 
@@ -701,7 +707,7 @@ void ExternalCommand::runComplexCommand(const string& cmd) {
     execlp("bash", "bash", "-c", cmd.c_str(), (char *)nullptr);
 
     // If execlp returns, an error occurred
-    cerr << "External command execution failed" << endl;
+    perror("External command execution failed");
     exit(1);
 }
 
@@ -727,7 +733,7 @@ ListDirCommand::ListDirCommand(const char* origin_cmd_line, const char *cmd_line
 void ListDirCommand::execute() {
     // Error - to many arguments
     if (getArgCount() > LIST_DIR_COMMAND_ARGS_NUM) {
-        cerr << "smash error: listdir: too many arguments" << endl;
+        perror("smash error: listdir: too many arguments");
         return;
     }
     
@@ -809,16 +815,16 @@ void RedirectionCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
     int index = m_cmd_string.find_first_of('>');
     bool isDouble = (m_cmd_string[index+1] == '>');
-    const char* command = strdup(m_cmd_string.substr(0,index).c_str());
-    const char* file = strdup(m_cmd_string.substr(index+1,m_cmd_string.size()-index).c_str());
+    const char* command = strdup(m_cmd_string.substr(0,index-1).c_str());
+    const char* file = strdup(m_cmd_string.substr(index+2,m_cmd_string.size()-index).c_str());
 
     // in case using '>>' instead of '>'
     if (isDouble)
-        file = m_cmd_string.substr(index+2,m_cmd_string.size()-index).c_str();
+        file = strdup(m_cmd_string.substr(index+3,m_cmd_string.size()-index).c_str());
     // forking the process, the son implement the command and writing the output while the parent wait
     pid_t pid = fork();
     if (pid < 0)
-        cerr << "failed to fork" << endl;
+        perror("failed to fork");
         
     // son processes
     if (pid == 0){
@@ -863,7 +869,7 @@ BuiltInCommand(origin_cmd_line, cmd_line){}
 
 void GetUserCommand::execute() {
     if (getArgCount() > 2){
-        cerr << "smash error: getuser: too many arguments" << endl;
+        perror("smash error: getuser: too many arguments");
         return;
     }
 
@@ -964,19 +970,19 @@ string WatchCommand::getWatchCommand(int& interval){
         updateInterval(args[1], interval);
     }
     catch(InvalidInterval& e){
-        cerr << "smash error: watch: invalid interval" << endl;
+        perror("smash error: watch: invalid interval");
         return "";
     }
     catch (...) {
         start--;
         if (SmallShell::COMMANDS.find(args[1]) == SmallShell::COMMANDS.end()){
-            cerr << "External command execution failed" << endl;
+            perror("External command execution failed");
             return "";
         }
     }
 
     if (argsNum == 1){
-        cerr << "smash error: watch: command not specified" << endl;
+        perror("smash error: watch: command not specified");
         return "";
     }
 
@@ -1010,7 +1016,7 @@ PipeCommand::PipeCommand(const char *origin_cmd_line, const char *cmd_line) : Co
 void PipeCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
 
-    // checking if its '|' or '|&| pipe
+    // Checking if its '|' or '|&| pipe
     char c ='|';
     bool isErr = (m_cmd_string[m_cmd_string.find_first_of(c)+1] == '&');
     if (isErr)
@@ -1058,18 +1064,46 @@ void PipeCommand::execute() {
     waitpid(pid1, &status, 0);
     close(fd[1]);
 //    if (dup2(fd[0], STDIN_FILENO) < 0) { // fd[0] is the reading end
-//        cerr << "dup2 failed" << endl;
+//        perror("dup2 failed" << endl;
 //        close(fd[0]);
 //        return;
 //    }
+
+    // Read data into file
     char buffer[BIG_NUMBER];
     ssize_t size = read(fd[0], buffer, BIG_NUMBER);
     close(fd[0]);
     buffer[size] = '\0';
-    const char* commandToExecute = strdup((command2 + " " + string(_trim(buffer))).c_str());
-    //const char* commandToExecute = strdup(command2.c_str());
+    createTempFile(string(_trim(buffer)).c_str());
+
+    // Execute command with temp file as argument
+    const char* commandToExecute = strdup((command2 + " temp.txt").c_str());
     smash.executeCommand(commandToExecute);
+
+    // Delete temp file and free malloc'd memory
+    deleteTempFile();
     free(const_cast<char*>(commandToExecute));
+}
+
+void PipeCommand::createTempFile(string content){
+    FILE *file;
+
+    // Open a file for writing
+    file = fopen("temp.txt", "w");
+    if (file == NULL)
+        perror("fopen");
+
+    // Write a string to the file
+    fputs(content.c_str(), file);
+
+    // Close the file
+    if (fclose(file) != 0)
+        perror("fclose");
+}
+
+void PipeCommand::deleteTempFile(){
+    remove("temp.txt");
+    return;
 }
 
 /*---------------------------------------------------------------------------------------------------*/

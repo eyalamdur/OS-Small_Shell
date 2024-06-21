@@ -1,5 +1,6 @@
 smash> submitted by Eran
-smash>  -5 fail.txt
+smash> xt 
+tail -5 fail.txt
 tail empty_file.txt
 tail -1 empty_file.txt
 tail tail_test.txt
@@ -7,4 +8,4 @@ tail -3 tail_test.txt
 tail -15 tail_test.txt
 tail -30 tail_test.txt
 quit
-smash> smash> 
+smash> 

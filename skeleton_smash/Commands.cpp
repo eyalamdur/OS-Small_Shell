@@ -152,7 +152,7 @@ void SmallShell::addAlias(string name, string command) {
     if (m_alias->find(name) == m_alias->end() && COMMANDS.find(name) == COMMANDS.end())
         (*m_alias)[name] = command;
     else
-        cout << "smash error: alias: " << name << " already exists or is a reserved command" << endl;
+        cerr << "smash error: alias: " << name << " already exists or is a reserved command" << endl;
 }
 
 void SmallShell::removeAlias(vector<string> args) {
@@ -160,7 +160,7 @@ void SmallShell::removeAlias(vector<string> args) {
         if (m_alias->find(args[i]) != m_alias->end())
             m_alias->erase(args[i]);
         else{
-            cout << "smash error: unalias: " << args[i] << " alias does not exist" << endl;
+            cerr << "smash error: unalias: " << args[i] << " alias does not exist" << endl;
             break;
         }
     }
@@ -472,7 +472,7 @@ void aliasCommand::execute() {
         if (regex_match(m_cmd_string, aliasRegex))
             smash.addAlias(m_name, m_command);
         else
-            cout << "smash error: alias: invalid alias format" << endl;
+            cerr << "smash error: alias: invalid alias format" << endl;
     }
 }
 
@@ -483,7 +483,7 @@ unaliasCommand::unaliasCommand(const char* origin_cmd_line, const char *cmd_line
 void unaliasCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
     if (getArgCount() == 1){
-        cout << "smash error: unalias: not enough arguments" << endl;
+        cerr << "smash error: unalias: not enough arguments" << endl;
     }
     else
         smash.removeAlias(getArgs());
@@ -551,7 +551,7 @@ ForegroundCommand::ForegroundCommand(const char* origin_cmd_line, const char* cm
 void ForegroundCommand::execute() {
     // Check if the jobs list is empty
     if (m_jobsList->isEmpty()) {
-        cout << "smash error: fg: jobs list is empty" << endl;
+        cerr << "smash error: fg: jobs list is empty" << endl;
         return;
     }
     
@@ -564,17 +564,17 @@ void ForegroundCommand::execute() {
         try {
             jobID = stoi(getArgs()[1]);
             if (m_jobsList->getJobById(jobID) == nullptr) {
-                cout << "smash error: fg: job-id " << jobID << " does not exist" << endl;
+                cerr << "smash error: fg: job-id " << jobID << " does not exist" << endl;
                 return;
             }
         } 
         catch (const invalid_argument& e) {
-            cout << "smash error: fg: invalid arguments" << endl;
+            cerr << "smash error: fg: invalid arguments" << endl;
             return;
         }
     } 
     else {
-        cout << "smash error: fg: invalid arguments" << endl;
+        cerr << "smash error: fg: invalid arguments" << endl;
         return;
     }
 
@@ -603,7 +603,7 @@ void KillCommand::execute() {
 
     // Validate the number of arguments
     if (args.size() != 3) {
-        cout << "smash error: kill: invalid arguments" << endl;
+        cerr << "smash error: kill: invalid arguments" << endl;
         return;
     }
 
@@ -614,7 +614,7 @@ void KillCommand::execute() {
     // Get job entry by job ID
     JobsList::JobEntry* jobEntry = m_jobsList->getJobById(jobID);
     if (jobEntry == nullptr) {
-        cout << "smash error: kill: job-id " << jobID << " does not exist" << endl;
+        cerr << "smash error: kill: job-id " << jobID << " does not exist" << endl;
         return;
     }
 
@@ -702,7 +702,7 @@ ListDirCommand::ListDirCommand(const char* origin_cmd_line, const char *cmd_line
 void ListDirCommand::execute() {
     // Error - to many arguments
     if (getArgCount() > LIST_DIR_COMMAND_ARGS_NUM) {
-        cout << "smash error: listdir: too many arguments" << endl;
+        cerr << "smash error: listdir: too many arguments" << endl;
         return;
     }
     
@@ -797,11 +797,11 @@ void RedirectionCommand::execute() {
             outputFile = open (file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     
         if (outputFile < 0){
-            cout << "failed to open" << endl;
+            perror("failed to open");
             exit(0);
         }
         if (dup2(outputFile, STDOUT_FILENO) < 0){
-            cout << "dup2 fail" << endl;
+            perror("dup2 fail");
             close(outputFile);
             exit(0);
         }
@@ -831,37 +831,43 @@ BuiltInCommand(origin_cmd_line, cmd_line){}
 
 void GetUserCommand::execute() {
     if (getArgCount() > 2){
-        cout << "smash error: getuser: too many arguments" << endl;
+        cerr << "smash error: getuser: too many arguments" << endl;
         return;
     }
-    if (getArgCount() == 1) {
-        cout << "smash error: getuser: too few arguments" << endl;
-        return;
-    }
+
     try {
         pid_t pid = static_cast<pid_t>(stoi(getArgs()[1]));
         printUserByPid(pid);
     }
     catch (const exception &e){
-        cout << "smash error: getuser: process " << getArgs()[1] << " does not exist" << endl;
+        cerr << "smash error: getuser: process " << getArgs()[1] << " does not exist" << endl;
     }
 }
 
+// changes and additions been made according to piazza @92 and @57_f3 @70
 void GetUserCommand::printUserByPid(pid_t pid) {
     //building the path to the status file using the given pid
     string status = "/proc/" + to_string(pid) + "/status";
     // opening the status file
-    ifstream statusFile(status);
-    if (!statusFile.is_open())
-        throw exception();
-
+    int fileDirectory = open(status.c_str(), O_RDONLY);
+    char buffer [BIG_NUMBER];
+    string statusFile;
+    ssize_t size;
+    do {
+        size = read(fileDirectory, buffer, BIG_NUMBER-1);
+        buffer[size] = '\0';
+        statusFile += buffer;
+    }
+    while (size > 0);
+    close (fileDirectory);
     // Variables to store UID and GID
     uid_t uid = ERROR_VALUE;
     gid_t gid = ERROR_VALUE;
 
     // Read the file line by line
+    istringstream lines (statusFile);
     string line;
-    while (getline(statusFile, line)) {
+    while (getline(lines, line)) {
         if (line.substr(0, 4) == "Uid:") {
             istringstream input(line);
             string uidLabel;
@@ -883,10 +889,7 @@ void GetUserCommand::printUserByPid(pid_t pid) {
         cout << "Group: " << group->gr_name << endl;
     }
     else{
-        if (!user)
-            cout << "failed to get the information for UID: " << uid << endl;
-        if (!group)
-            cout << "failed to get the information for GID: " << gid << endl;
+        throw exception();
     }
 }
 
@@ -929,7 +932,7 @@ string WatchCommand::getWatchCommand(int& interval){
         updateInterval(args[1], interval);
     }
     catch(InvalidInterval& e){
-        cout << "smash error: watch: invalid interval" << endl;
+        cerr << "smash error: watch: invalid interval" << endl;
         return "";
     }
     catch (...) {
@@ -941,7 +944,7 @@ string WatchCommand::getWatchCommand(int& interval){
     }
 
     if (argsNum == 1){
-        cout << "smash error: watch: command not specified" << endl;
+        cerr << "smash error: watch: command not specified" << endl;
         return "";
     }
 
@@ -992,14 +995,14 @@ void PipeCommand::execute() {
     // Create pipe
     int fd[2];
     if (pipe(fd) < 0) {
-        cout << "pipe failed" << endl;
+        perror ("pipe failed");
         return;
     }
 
     // Fork the first child (command1)
     pid_t pid1 = fork();
     if (pid1 < 0) {
-        cout << "fork failed" << endl;
+        perror("fork failed");
         close(fd[0]);
         close(fd[1]);
         return;

@@ -1009,37 +1009,49 @@ void PipeCommand::execute() {
 
 
 
-    pid_t pid2 = fork();
-    if (pid1 < 0) {
-        cout << "fork failed" << endl;
-        close(fd[0]);
-        close(fd[1]);
-        return;
-    }
-    if (pid2 == 0){
-        setpgrp();
-        close(fd[1]);
-        if (dup2(fd[0], STDIN_FILENO) < 0){
-            cout << "failed to dup2()" <<endl;
-            close(fd[0]);
-            return;
-        }
-//        char** argv = new char* [4];
-//        argv[0] = const_cast<char*>("/bin/bash");
-//        argv[1] = const_cast<char*>("-c");
-//        argv[2] = const_cast<char*>(command2.c_str());
-//        argv[3] = nullptr;
-        close(fd[0]);
-        smash.executeCommand(command2.c_str());
-//        execvp(command2.c_str(), nullptr);
-//        cout << "execvp failed" << endl;
-        exit(1);
-    }
+//     pid_t pid2 = fork();
+//     if (pid1 < 0) {
+//         cout << "fork failed" << endl;
+//         close(fd[0]);
+//         close(fd[1]);
+//         return;
+//     }
+//     if (pid2 == 0){
+//         setpgrp();
+//         close(fd[1]);
+//         if (dup2(fd[0], STDIN_FILENO) < 0){
+//             cout << "failed to dup2()" <<endl;
+//             close(fd[0]);
+//             return;
+//         }
+// //        char** argv = new char* [4];
+// //        argv[0] = const_cast<char*>("/bin/bash");
+// //        argv[1] = const_cast<char*>("-c");
+// //        argv[2] = const_cast<char*>(command2.c_str());
+// //        argv[3] = nullptr;
+//         close(fd[0]);
+//         string temp;
+//         getline(cin, temp);
+//         cout << "|" << temp << "|" << endl;
+//         cout << "|" << command2 << "|" << endl;
+//         smash.executeCommand((command2+temp).c_str());
+// //        execvp(command2.c_str(), nullptr);
+// //        cout << "execvp failed" << endl;
+//         exit(1);
+//     }
     int status;
-    close(fd[1]);
-    close(fd[1]);
+    
     waitpid(pid1, &status, 0);
-    waitpid(pid2, &status, 0);
+    // waitpid(pid2, &status, 0);
+    string temp;
+    dup2(fd[0], STDIN_FILENO);
+    getline(cin, temp);
+    cout << "|" << temp << "|" << endl;
+    cout << "|" << command2 << "|" << endl;
+    smash.executeCommand((command2+temp).c_str());
+    //dup2( STDIN_FILENO, fd[0]);
+    close(fd[1]);
+    close(fd[0]);
     cout << "finished func" << endl;
     //parent process
 

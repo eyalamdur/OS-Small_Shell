@@ -495,7 +495,7 @@ void aliasCommand::execute() {
         if (regex_match(m_cmd_string, aliasRegex))
             smash.addAlias(m_name, m_command);
         else
-            perror("smash error: alias: invalid alias format");
+            cerr << "smash error: alias: invalid alias format" << endl;
     }
 }
 
@@ -506,7 +506,7 @@ unaliasCommand::unaliasCommand(const char* origin_cmd_line, const char *cmd_line
 void unaliasCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
     if (getArgCount() == 1){
-        perror("smash error: unalias: not enough arguments");
+        cerr << "smash error: unalias: not enough arguments" << endl;
     }
     else
         smash.removeAlias(getArgs());
@@ -531,7 +531,7 @@ void ChangeDirCommand::execute() {
             if (plastPwd != nullptr)
                 newDir = plastPwd;
             else
-                perror("smash error: cd: OLDPWD not set");
+                cerr << "smash error: cd: OLDPWD not set" << endl;
         }
         else if (getArgs()[1] == ".."){
             newDir = dirname(getcwd(NULL, 0));
@@ -547,7 +547,7 @@ void ChangeDirCommand::execute() {
     
     // 2 args or more
     else if (getArgCount() > CD_COMMAND_ARGS_NUM){
-        perror("smash error: cd: too many arguments");
+        cerr << "smash error: cd: too many arguments" << endl;
         return;
     }
 
@@ -574,7 +574,7 @@ ForegroundCommand::ForegroundCommand(const char* origin_cmd_line, const char* cm
 void ForegroundCommand::execute() {
     // Check if the jobs list is empty
     if (m_jobsList->isEmpty()) {
-        perror("smash error: fg: jobs list is empty");
+        cerr << "smash error: fg: jobs list is empty" << endl;
         return;
     }
     
@@ -594,12 +594,12 @@ void ForegroundCommand::execute() {
             }
         } 
         catch (const invalid_argument& e) {
-            perror("smash error: fg: invalid arguments");
+            cerr << "smash error: fg: invalid arguments" << endl;
             return;
         }
     } 
     else {
-        perror("smash error: fg: invalid arguments");
+        cerr << "smash error: fg: invalid arguments" << endl;
         return;
     }
 
@@ -628,7 +628,7 @@ void KillCommand::execute() {
     int signum, jobID;
     // Validate the number of arguments
     if (args.size() != 3) {
-        perror("smash error: kill: invalid arguments");
+        cerr << "smash error: kill: invalid arguments" << endl;
         return;
     }
 
@@ -638,7 +638,7 @@ void KillCommand::execute() {
         jobID = stoi(args[2]);
     }
     catch(...){
-        perror("smash error: kill: invalid arguments");
+        cerr << "smash error: kill: invalid arguments" << endl;
         return;
     }
 
@@ -653,7 +653,7 @@ void KillCommand::execute() {
         if (kill(jobEntry->getProcessID(), signum) == 0)
             cout << "signal number " << signum << " was sent to pid " << jobEntry->getProcessID() << endl;
         else
-            perror("kill error");
+            cerr << "kill error" << endl;
 }
 
 /*---------------------------------------------------------------------------------------------------*/
@@ -733,7 +733,7 @@ ListDirCommand::ListDirCommand(const char* origin_cmd_line, const char *cmd_line
 void ListDirCommand::execute() {
     // Error - to many arguments
     if (getArgCount() > LIST_DIR_COMMAND_ARGS_NUM) {
-        perror("smash error: listdir: too many arguments");
+        cerr << "smash error: listdir: too many arguments" << endl;
         return;
     }
     
@@ -869,7 +869,7 @@ BuiltInCommand(origin_cmd_line, cmd_line){}
 
 void GetUserCommand::execute() {
     if (getArgCount() > 2){
-        perror("smash error: getuser: too many arguments");
+        cerr << "smash error: getuser: too many arguments" << endl;
         return;
     }
 
@@ -970,7 +970,7 @@ string WatchCommand::getWatchCommand(int& interval){
         updateInterval(args[1], interval);
     }
     catch(InvalidInterval& e){
-        perror("smash error: watch: invalid interval");
+        cerr << "smash error: watch: invalid interval" << endl;
         return "";
     }
     catch (...) {
@@ -982,7 +982,7 @@ string WatchCommand::getWatchCommand(int& interval){
     }
 
     if (argsNum == 1){
-        perror("smash error: watch: command not specified");
+        cerr << "smash error: watch: command not specified" << endl;
         return "";
     }
 
@@ -1011,23 +1011,24 @@ void WatchCommand::updateInterval(string value, int& interval){
 
 
 /* C'tor for pipe command class */
-PipeCommand::PipeCommand(const char *origin_cmd_line, const char *cmd_line) : Command(origin_cmd_line, cmd_line){}
-
-void PipeCommand::execute() {
-    SmallShell &smash = SmallShell::getInstance();
-
+PipeCommand::PipeCommand(const char *origin_cmd_line, const char *cmd_line) : Command(origin_cmd_line, cmd_line){
     // Checking if its '|' or '|&| pipe
     char c ='|';
-    bool isErr = (m_cmd_string[m_cmd_string.find_first_of(c)+1] == '&');
-    if (isErr)
+    bool m_isErr = (m_cmd_string[m_cmd_string.find_first_of(c)+1] == '&');
+    if (m_isErr)
         c = '&';
 
     // Split the commands
-    string command1 = (isErr ? m_cmd_string.substr(0, m_cmd_string.find_first_of(c)-1)
+    string command1 = (m_isErr ? m_cmd_string.substr(0, m_cmd_string.find_first_of(c)-1)
             : m_cmd_string.substr(0, m_cmd_string.find_first_of(c)));
     string command2 = m_cmd_string.substr(m_cmd_string.find_first_of(c) + 1);
-    command1 = _trim(command1);
-    command2 = _trim(command2);
+    m_firstCmd = _trim(command1);
+    m_secondCmd = _trim(command2) + " ";
+
+}
+
+void PipeCommand::execute() {
+    SmallShell &smash = SmallShell::getInstance();
 
     // Create pipe
     int fd[2];
@@ -1036,53 +1037,60 @@ void PipeCommand::execute() {
         return;
     }
 
-    // Fork the first child (command1)
-    pid_t pid1 = fork();
-    if (pid1 < 0) {
+    // First child process (command1)
+    pid_t firstPid = fork();
+    if (firstPid < 0) {
         perror("fork failed");
         close(fd[0]);
         close(fd[1]);
         return;
     }
-    // First child process (command1)
-    if (pid1 == 0) {
+
+    if (firstPid == 0) {
+        setpgrp();
         close(fd[0]);
-        int outputChannel = (isErr ? STDERR_FILENO :  STDOUT_FILENO) ;
+        int outputChannel = (m_isErr ? STDERR_FILENO :  STDOUT_FILENO) ;
         if (dup2(fd[1], outputChannel) < 0) { //fd[1] is the writing end
             perror("dup2 failed");
             close(fd[1]);
-            exit(1);
+            return;
         }
+        smash.executeCommand(m_firstCmd.c_str());
         close(fd[1]);
-        const char* commandToExecute = strdup(command1.c_str());
-        smash.executeCommand(commandToExecute);
-        free(const_cast<char*>(commandToExecute));
         exit(0);
     }
+
+    // Second child process (command2)
+    pid_t secondPid = fork();
+    if (secondPid < 0) {
+        perror("fork failed");
+        close(fd[0]);
+        close(fd[1]);
+        return;
+    }
+
+    if (secondPid == 0) {
+        setpgrp();
+        if (dup2(fd[0], STDIN_FILENO) < 0) { //fd[1] is the writing end
+            perror("dup2 failed");
+            close(fd[1]);
+            return;
+        }
+        close(fd[0]);
+        close(fd[1]);
+        string temp;
+        cin >> temp;
+        cout << m_secondCmd+temp << endl;
+        smash.executeCommand((m_secondCmd+temp).c_str());
+        exit(0);
+    }
+
     //parent process
     int status;
-    waitpid(pid1, &status, 0);
-    close(fd[1]);
-//    if (dup2(fd[0], STDIN_FILENO) < 0) { // fd[0] is the reading end
-//        perror("dup2 failed" << endl;
-//        close(fd[0]);
-//        return;
-//    }
-
-    // Read data into file
-    char buffer[BIG_NUMBER];
-    ssize_t size = read(fd[0], buffer, BIG_NUMBER);
     close(fd[0]);
-    buffer[size] = '\0';
-    createTempFile(string(_trim(buffer)).c_str());
-
-    // Execute command with temp file as argument
-    const char* commandToExecute = strdup((command2 + " temp.txt").c_str());
-    smash.executeCommand(commandToExecute);
-
-    // Delete temp file and free malloc'd memory
-    deleteTempFile();
-    free(const_cast<char*>(commandToExecute));
+    close(fd[1]);
+    waitpid(firstPid, &status, 0);
+    waitpid(secondPid, &status, 0);
 }
 
 void PipeCommand::createTempFile(string content){

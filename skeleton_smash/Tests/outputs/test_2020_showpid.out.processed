@@ -1,6 +1,7 @@
 smash> smash pid is 1
 smash> smash pid is 1
-smash> smash> smash pid is 1
-smash> smash pid is 1
+smash> smash> grep smash sleep
+smash> showpid cat
+smash pid is 1
 smash> smash pid is 1
 smash> smash> 

@@ -1,5 +1,5 @@
 sleep 100
-^Z
+^C
 jobs
 bg
 jobs

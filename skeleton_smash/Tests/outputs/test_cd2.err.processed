@@ -1,2 +1,2 @@
-smash error: cd: OLDPWD not set: Success
-smash error: cd: too many arguments: Invalid argument
+smash error: cd: OLDPWD not set
+smash error: cd: too many arguments

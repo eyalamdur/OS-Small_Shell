@@ -67,7 +67,11 @@ public:
 };
 
 class PipeCommand : public Command {
-    // TODO: Add your data members
+protected:
+    string m_firstCmd;
+    string m_secondCmd;
+    bool m_isErr;
+
 public:
     PipeCommand(const char* origin_cmd_line, const char *cmd_line);
 

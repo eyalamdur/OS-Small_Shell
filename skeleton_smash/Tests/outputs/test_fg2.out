@@ -1,0 +1,4 @@
+smash> smash> smash> smash> smash> smash> sleep 300& 1866
+smash: got ctrl-C
+smash: process 1866 was killed.
+smash> sleep 100& 1864

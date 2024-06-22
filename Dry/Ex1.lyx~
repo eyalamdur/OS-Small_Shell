@@ -187,19 +187,116 @@ beerizitelny@campus.technion.ac.il, eyal.amdur@campus.technion.ac.il
 1
 \end_layout
 
+\begin_layout Description
+\begin_inset Graphics
+	filename q1.png
+	lyxscale 60
+	scale 65
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Itemize
 
 \bar under
 \color black
-סעיף א
+סעיף
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+ 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\numeric on
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+1
 \end_layout
 
 \begin_deeper
 \begin_layout Standard
 \align right
+ריצת הקוד הנ
+\begin_inset Quotes erd
+\end_inset
 
-\color black
-ס
+ל תתקיים כך:
+\begin_inset Newline newline
+\end_inset
+
+בתחילת הריצה התכנית תכנס ל-
+\lang english
+main
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\lang hebrew
+ ותדפיס את ה-
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+\lang english
+pid
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\lang hebrew
+ 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\xout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+של התהליך הנוכחי.
 \end_layout
 
 \end_deeper

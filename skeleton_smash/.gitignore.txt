@@ -4,5 +4,9 @@ Commands.o
 signals.o
 smash.o
 idea.
+<<<<<<< HEAD
 smash
 Dry
+=======
+smash
+>>>>>>> Testing

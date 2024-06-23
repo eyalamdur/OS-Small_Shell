@@ -1,0 +1,7 @@
+Try 'timeout --help' for more information.
+Try 'timeout --help' for more information.
+timeout: invalid option -- '4'
+Try 'timeout --help' for more information.
+timeout: failed to run command ‘../my_sleep’: No such file or directory
+timeout: failed to run command ‘../my_sleep’: No such file or directory
+timeout: failed to run command ‘../my_sleep’: No such file or directory

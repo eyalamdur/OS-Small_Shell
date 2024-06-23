@@ -6,6 +6,7 @@
 #include <set>
 #include <memory>
 
+
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 #define CD_COMMAND_ARGS_NUM (2)
@@ -66,13 +67,19 @@ public:
 };
 
 class PipeCommand : public Command {
-    // TODO: Add your data members
+protected:
+    string m_firstCmd;
+    string m_secondCmd;
+    bool m_isErr;
+
 public:
     PipeCommand(const char* origin_cmd_line, const char *cmd_line);
 
     virtual ~PipeCommand() {}
 
     void execute() override;
+    void createTempFile(string content);
+    void deleteTempFile();
 };
 
 class WatchCommand : public Command {
@@ -226,12 +233,21 @@ public:
 };
 
 class ListDirCommand : public BuiltInCommand {
+protected:
+    struct linux_dirent {
+        long d_ino;
+        off_t d_off;
+        unsigned short d_reclen;
+        char d_name[];
+    };
 public:
     ListDirCommand(const char* origin_cmd_line, const char *cmd_line);
 
     virtual ~ListDirCommand() {}
 
     void execute() override;
+    void sortEntreysAlphabetically(vector<string>& dir, int nread, vector<char> buffer);
+    void printContent(vector<string> entries, const char* directoryPath, vector<char> buffer, bool files);
 };
 
 class GetUserCommand : public BuiltInCommand {
@@ -284,6 +300,7 @@ private:
     bool m_proceed;
     bool m_stopWatch;
     map<string, string>* m_alias;
+    vector<string> m_aliasToPrint;
 
 public:
     const static set<string> COMMANDS;

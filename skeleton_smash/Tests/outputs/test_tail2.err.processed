@@ -1,0 +1,4 @@
+tail: cannot open 'fail.txt' for reading: No such file or directory
+tail: cannot open 'fail.txt' for reading: No such file or directory
+tail: cannot open 'empty_fil' for reading: No such file or directory
+runner: Timeout, killing child

@@ -1,0 +1,8 @@
+smash> submitted by Eran
+smash> e.txt
+tail tail_test.txt
+tail -3 tail_test.txt
+tail -15 tail_test.txt
+tail -30 tail_test.txt
+quit
+smash> smash> smash> smash> 

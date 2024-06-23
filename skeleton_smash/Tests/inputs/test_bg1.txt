@@ -1,0 +1,6 @@
+sleep 100
+^C
+jobs
+bg
+jobs
+quit kill

@@ -1,0 +1,18 @@
+sleep 100
+^C
+sleep 200
+^C
+sleep 300
+^C
+sleep 400
+^C
+sleep 500
+^C
+jobs
+bg 3
+bg 4
+bg 2
+bg
+bg
+jobs
+quit kill

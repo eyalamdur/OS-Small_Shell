@@ -149,11 +149,13 @@ void SmallShell::quit() {
     m_proceed = false;
 }
 
-void SmallShell::addAlias(string name, string command) {
+void SmallShell::addAlias(string name, string command, string originCommand) {
     if (m_alias->find(name) == m_alias->end() && COMMANDS.find(name) == COMMANDS.end()){
         (*m_alias)[name] = command;
         m_aliasToPrint.push_back(name);
-        m_aliasToPrint.push_back(command);
+        int equals = originCommand.find_first_of('='); // position of the '=' sign
+        string printCommand = originCommand.substr(equals, originCommand.size()-equals);
+        m_aliasToPrint.push_back(printCommand);
     }
     else
         cerr << "smash error: alias: " << name << " already exists or is a reserved command" << endl;
@@ -186,12 +188,13 @@ void SmallShell::removeAlias(vector<string> args) {
 void SmallShell::printAlias() {
     //printing the aliases by the order of appending
     for (int i = 0; i < (int)m_aliasToPrint.size(); i+=2)
-        cout << m_aliasToPrint[i] << "='" << m_aliasToPrint[i+1] << "'" << endl;
+        cout << m_aliasToPrint[i] << m_aliasToPrint[i+1] << endl;
 }
 
 char* SmallShell::extractCommand(const char* cmd_l,string &firstWord){
     // Make a modifiable copy of the command line and remove & if exists
     char* newCmdLine = strdup(cmd_l);
+
     _removeBackgroundSign(newCmdLine);
 
     // Find first word (the command)
@@ -210,7 +213,6 @@ char* SmallShell::extractCommand(const char* cmd_l,string &firstWord){
         firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
         copy(cmd_s.begin(), cmd_s.end(), newCmdLine);
     }
-
     return newCmdLine;
 }
 
@@ -218,6 +220,9 @@ char* SmallShell::extractCommand(const char* cmd_l,string &firstWord){
 Command *SmallShell::CreateCommand(const char *cmd_line) {
     string firstWord;
     char* newCmdLine = extractCommand(cmd_line, firstWord);
+    //case the alias command is background, need to trim the '&'
+    bool isBg = _isBackgroundCommand(newCmdLine);
+    _removeBackgroundSign(newCmdLine);
     if (firstWord.compare("alias") == 0)
         return new aliasCommand(cmd_line, newCmdLine);
     else if (string(newCmdLine).find('>') != string::npos)
@@ -249,7 +254,7 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     else if (firstWord.compare("watch") == 0)
         return new WatchCommand(cmd_line, newCmdLine);
     else
-        return new ExternalCommand(cmd_line, newCmdLine, _isBackgroundCommand(cmd_line));
+        return new ExternalCommand(cmd_line, newCmdLine, _isBackgroundCommand(cmd_line) || isBg);
 
   return nullptr;
 }
@@ -267,6 +272,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
     }
 
  if(cmd->isExternalCommand()){
+
         // Fork a new process
         pid_t pid = fork();
 
@@ -471,7 +477,7 @@ aliasCommand::aliasCommand(const char* origin_cmd_line, const char *cmd_line) : 
     }
 
     length = equals - space - 1;
-    
+
     char name[length + 1];
     for (int i = 0; i < length; i++)
         name[i] = m_cmd_string[space + 1 + i];
@@ -493,7 +499,7 @@ void aliasCommand::execute() {
         m_cmd_string = _trim(m_cmd_string);
         string first = m_command.substr(0, m_command.find_first_of(" \n"));
         if (regex_match(m_cmd_string, aliasRegex))
-            smash.addAlias(m_name, m_command);
+            smash.addAlias(m_name, m_command, m_origin_cmd_string);
         else
             cerr << "smash error: alias: invalid alias format" << endl;
     }
@@ -668,6 +674,7 @@ ExternalCommand::ExternalCommand(const char* origin_cmd_line, const char *cmd_li
 
 /* Execute method to an external command. */
 void ExternalCommand::execute() {
+
     // Check if the command line contains special characters like '*' or '?'
         string cmd = getCommand();
         cmd = _removeBackgroundSignForString(cmd);

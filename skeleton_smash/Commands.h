@@ -316,7 +316,7 @@ public:
     void setPlastPwdPtr(char * newPwd);
     char* getPlastPwdPtr();
 
-    void addAlias (string name, string command);
+    void addAlias (string name, string command, string originCommand);
     void removeAlias (vector<string>args);
     void printAlias();
 

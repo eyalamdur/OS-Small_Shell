@@ -271,7 +271,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
         pid_t pid = fork();
 
         if (pid == ERROR_VALUE) {
-            perror("Error forking process");
+            perror("smash error: fork failed");
             delete cmd;
             return;
         }
@@ -542,7 +542,6 @@ void ChangeDirCommand::execute() {
             newDir = strdup(getArgs()[1].c_str());
             lessArg = true;
         }
-            
     }
     
     // 2 args or more
@@ -553,8 +552,12 @@ void ChangeDirCommand::execute() {
 
     // Change directory using chdir
     if (newDir != nullptr){
-        smash.setPlastPwdPtr(getcwd(NULL, 0));
-        chdir(newDir);
+        plastPwd = getcwd(nullptr, 0);
+        if(chdir(newDir) <= ERROR_VALUE){
+            perror("smash error: chdir failed");
+        }
+        else
+            smash.setPlastPwdPtr(strdup(plastPwd));
     }
     if (lessArg)
         free(newDir);
@@ -571,18 +574,18 @@ void JobsCommand::execute() {
 
 ForegroundCommand::ForegroundCommand(const char* origin_cmd_line, const char* cmd_line, JobsList* jobs) : BuiltInCommand(origin_cmd_line, cmd_line), m_jobsList(jobs){}
 
-void ForegroundCommand::execute() {
-    // Check if the jobs list is empty
-    if (m_jobsList->isEmpty()) {
-        cerr << "smash error: fg: jobs list is empty" << endl;
-        return;
-    }
-    
+void ForegroundCommand::execute() {  
     SmallShell &smash = SmallShell::getInstance();
     int jobID;
     // No job ID specified, select the job with the maximum job ID
-    if (getArgs().size() == 1)
+    if (getArgs().size() == 1){
+        // Check if the jobs list is empty
+        if (m_jobsList->isEmpty()) {
+            cerr << "smash error: fg: jobs list is empty" << endl;
+            return;
+        }
         jobID = m_jobsList->getNextJobID() - 1;
+    }
     else if (getArgs().size() == 2) {
         try {
             jobID = stoi(getArgs()[1]);
@@ -636,6 +639,9 @@ void KillCommand::execute() {
     try{
         signum = stoi(args[1]);
         jobID = stoi(args[2]);
+        signum = signum < 0 ? -signum : MAX_SIGNAL_NUMBER + 1;
+        if (signum > MAX_SIGNAL_NUMBER)
+            throw InvalidArgument();
     }
     catch(...){
         cerr << "smash error: kill: invalid arguments" << endl;
@@ -653,7 +659,7 @@ void KillCommand::execute() {
         if (kill(jobEntry->getProcessID(), signum) == 0)
             cout << "signal number " << signum << " was sent to pid " << jobEntry->getProcessID() << endl;
         else
-            cerr << "kill error" << endl;
+            perror("smash error: kill failed");
 }
 
 /*---------------------------------------------------------------------------------------------------*/
@@ -697,7 +703,7 @@ void ExternalCommand::runSimpleCommand(const string& cmd) {
     execvp(args[0], args);
 
     // Handle execvp failure
-    perror("External command execution failed");
+    perror("smash error: External command failed");
     exit(1);
 }
 
@@ -707,7 +713,7 @@ void ExternalCommand::runComplexCommand(const string& cmd) {
     execlp("bash", "bash", "-c", cmd.c_str(), (char *)nullptr);
 
     // If execlp returns, an error occurred
-    perror("External command execution failed");
+    perror("smash error: External command failed");
     exit(1);
 }
 
@@ -743,7 +749,7 @@ void ListDirCommand::execute() {
     // Open directory - return if failed.
     int fd = open(directoryPath, O_RDONLY | O_DIRECTORY);
     if (fd < 0) {
-        perror("open");
+        perror("smash error: open failed");
         return;
     }
 
@@ -751,7 +757,7 @@ void ListDirCommand::execute() {
     vector<char> buffer(DEFAULT_BUFFER_SIZE);
     int nread = syscall(SYS_getdents, fd, buffer.data(), buffer.size());
     if (nread < 0) {
-        perror("getdents");
+        perror("smash error: getdents failed");
         return;
     }
 
@@ -800,7 +806,7 @@ void ListDirCommand::printContent(vector<string> entries, const char* directoryP
                 link_buffer[len] = '\0';
                 cout << "link: " << entryName << " -> " << link_buffer << endl;
             } else {
-                perror("readlink");
+                perror("smash error: readlink failed");
             }
         }
     }
@@ -813,9 +819,11 @@ Command (origin_cmd_line, cmd_line) {}
 void RedirectionCommand::execute() {
     // breaking the cmd_line to a command and filename
     SmallShell &smash = SmallShell::getInstance();
-    int index = m_cmd_string.find_first_of('>');
-    bool isDouble = (m_cmd_string[index+1] == '>');
-    const char* command = strdup(m_cmd_string.substr(0,index-1).c_str());
+    int index = m_cmd_string.find_first_of('>'), start = 1;
+    bool isDouble = (m_cmd_string[index+start] == '>');
+    const char* command = strdup(m_cmd_string.substr(0,index).c_str());
+    if (m_cmd_string[index] == ' ')
+        start = 2;
     const char* file = strdup(m_cmd_string.substr(index+2,m_cmd_string.size()-index).c_str());
 
     // in case using '>>' instead of '>'
@@ -824,7 +832,7 @@ void RedirectionCommand::execute() {
     // forking the process, the son implement the command and writing the output while the parent wait
     pid_t pid = fork();
     if (pid < 0)
-        perror("failed to fork");
+        perror("smash error: fork failed");
         
     // son processes
     if (pid == 0){
@@ -835,11 +843,11 @@ void RedirectionCommand::execute() {
             outputFile = open (file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     
         if (outputFile < 0){
-            perror("failed to open");
+            perror("smash error: open failed");
             exit(0);
         }
         if (dup2(outputFile, STDOUT_FILENO) < 0){
-            perror("dup2 fail");
+            perror("smash error: dup2 failed");
             close(outputFile);
             exit(0);
         }
@@ -874,10 +882,14 @@ void GetUserCommand::execute() {
     }
 
     try {
+        if (getArgCount() == 1){
+            cerr << "smash error: getuser: process  does not exist" << endl;
+            return;
+        }
         pid_t pid = static_cast<pid_t>(stoi(getArgs()[1]));
         printUserByPid(pid);
     }
-    catch (const exception &e){
+    catch (...){
         cerr << "smash error: getuser: process " << getArgs()[1] << " does not exist" << endl;
     }
 }
@@ -976,7 +988,7 @@ string WatchCommand::getWatchCommand(int& interval){
     catch (...) {
         start--;
         if (SmallShell::COMMANDS.find(args[1]) == SmallShell::COMMANDS.end()){
-            perror("External command execution failed");
+            perror("smash error: External command failed");
             return "";
         }
     }
@@ -1029,6 +1041,7 @@ PipeCommand::PipeCommand(const char *origin_cmd_line, const char *cmd_line) : Co
 
 void PipeCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
+    string temp;
 
     // Create pipe
     int fd[2];
@@ -1040,7 +1053,7 @@ void PipeCommand::execute() {
     // First child process (command1)
     pid_t firstPid = fork();
     if (firstPid < 0) {
-        perror("fork failed");
+        perror("smash error: fork failed");
         close(fd[0]);
         close(fd[1]);
         return;
@@ -1051,7 +1064,7 @@ void PipeCommand::execute() {
         close(fd[0]);
         int outputChannel = (m_isErr ? STDERR_FILENO :  STDOUT_FILENO) ;
         if (dup2(fd[1], outputChannel) < 0) { //fd[1] is the writing end
-            perror("dup2 failed");
+            perror("smash error: dup2 failed");
             close(fd[1]);
             return;
         }
@@ -1063,7 +1076,7 @@ void PipeCommand::execute() {
     // Second child process (command2)
     pid_t secondPid = fork();
     if (secondPid < 0) {
-        perror("fork failed");
+        perror("smash error: fork failed");
         close(fd[0]);
         close(fd[1]);
         return;
@@ -1072,16 +1085,13 @@ void PipeCommand::execute() {
     if (secondPid == 0) {
         setpgrp();
         if (dup2(fd[0], STDIN_FILENO) < 0) { //fd[1] is the writing end
-            perror("dup2 failed");
+            perror("smash error: dup2 failed");
             close(fd[1]);
             return;
         }
         close(fd[0]);
         close(fd[1]);
-        string temp;
-        cin >> temp;
-        cout << m_secondCmd+temp << endl;
-        smash.executeCommand((m_secondCmd+temp).c_str());
+        smash.executeCommand((m_secondCmd).c_str());
         exit(0);
     }
 
@@ -1091,27 +1101,6 @@ void PipeCommand::execute() {
     close(fd[1]);
     waitpid(firstPid, &status, 0);
     waitpid(secondPid, &status, 0);
-}
-
-void PipeCommand::createTempFile(string content){
-    FILE *file;
-
-    // Open a file for writing
-    file = fopen("temp.txt", "w");
-    if (file == NULL)
-        perror("fopen");
-
-    // Write a string to the file
-    fputs(content.c_str(), file);
-
-    // Close the file
-    if (fclose(file) != 0)
-        perror("fclose");
-}
-
-void PipeCommand::deleteTempFile(){
-    remove("temp.txt");
-    return;
 }
 
 /*---------------------------------------------------------------------------------------------------*/
@@ -1204,9 +1193,6 @@ void JobsList::removeJobById(int jobId){
 
     // Remove given job.
     if (it != m_jobEntries->end()) {
-        // Free allocated memory of command 
-        delete it->getCommand();
-
         m_jobEntries->erase(it, m_jobEntries->end());
         m_numRunningJobs--;
 

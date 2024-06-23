@@ -6,7 +6,7 @@ sleep 200&
 fg 2 5
 fg 2
 ^1
-^Z
+^C
 jobs
 fg 1
 ^1
@@ -15,6 +15,6 @@ jobs
 sleep 300&
 fg
 ^1
-^Z
+^C
 jobs
 quit kill

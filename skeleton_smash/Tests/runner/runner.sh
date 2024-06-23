@@ -7,7 +7,7 @@ GREENBG='\e[42m'
 BLUEBG='\e[44m'
 NC='\033[0m' # No Color
 
-TASKS=${TASKS:-8}
+TASKS=${TASKS:-30}
 TESTS_INPUT=`pwd`/tests/inputs
 TESTS_GLOB=$TESTS_INPUT/${1:-test_*}
 TESTS_OUTPUT=`pwd`/tests/outputs

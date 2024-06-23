@@ -8,7 +8,7 @@ smash pid is 1
 smash> smash> smash pid is 1
 smash> mypid
 new
-smash> smash> smash> [1] sleep 100& : 2 X secs
+smash> smash> smash> [1] sleep 100&
 smash> smash> smash> smash> smash> k
 mypid
 new

@@ -4,6 +4,6 @@ sleep 200&
 sleep 300&
 fg 2
 ^1
-^Z
+^C
 jobs
 quit

@@ -1,7 +1,7 @@
-smash> smash> smash> smash> smash> test_redirec
-smash> smash> again_redirec
-smash> smash> again_redirec
-test_redirec
+smash> smash> smash> smash> smash> test_redirect
+smash> smash> again_redirect
+smash> smash> again_redirect
+test_redirect
 smash> smash> smash pid is 1
 smash> smash> smash pid is 1
 smash pid is 1
@@ -27,8 +27,8 @@ p
 s
 t
 smash> smash> smash> before
-smash> again_redirec
-test_redirec
+smash> again_redirect
+test_redirect
 smash> smash> smash> smash> k
 mypid
 p
@@ -40,7 +40,14 @@ mypid
 p
 s
 t
-smash> smash> smash> smash> ew
+smash> smash> smash> ew
+k
+mypid
+new
+p
+s
+t
+smash> ew
 k
 mypid
 new
@@ -54,5 +61,8 @@ p
 s
 t
 test
-smash> smash> smash> smash> smash> smash: sending SIGKILL signal to 1 jobs:
+smash> smash> 0
+2
+end: 4
+smash> smash> smash> smash: sending SIGKILL signal to 1 jobs:
 2: sleep 100&

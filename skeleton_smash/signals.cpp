@@ -19,7 +19,7 @@ void ctrlCHandler(int sig_num) {
         return;
     
     // Kill fg process
-    cout << "smash: process " << smash.getForegroundProcess() << " was killed." << endl;
+    cout << "smash: process " << smash.getForegroundProcess() << " was killed" << endl;
     kill(smash.getForegroundProcess(),SIGKILL);
     
     // Reset to no fg process

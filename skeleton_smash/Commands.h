@@ -14,6 +14,7 @@
 #define DEFAULT_INTERVAL_TIME (2)
 #define DEFAULT_JOB_ID (1)
 #define DEFAULT_BUFFER_SIZE (256)
+#define MAX_SIGNAL_NUMBER (31)
 #define DEFAULT_NUM_RUNNING_JOBS (0)
 #define CHILD_ID (0)
 #define ERROR_VALUE (-1)
@@ -78,8 +79,6 @@ public:
     virtual ~PipeCommand() {}
 
     void execute() override;
-    void createTempFile(string content);
-    void deleteTempFile();
 };
 
 class WatchCommand : public Command {
@@ -213,6 +212,7 @@ public:
 class KillCommand : public BuiltInCommand {
 protected:
     JobsList* m_jobsList;
+    class InvalidArgument : public exception{};
 public:
     KillCommand(const char* origin_cmd_line, const char *cmd_line, JobsList *jobs);
 

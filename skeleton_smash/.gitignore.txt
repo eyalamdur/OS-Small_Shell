@@ -4,3 +4,5 @@ Commands.o
 signals.o
 smash.o
 idea.
+smash
+Dry

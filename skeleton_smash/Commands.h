@@ -95,12 +95,16 @@ public:
 };
 
 class RedirectionCommand : public Command {
-    // TODO: Add your data members
+protected:
+    const char* m_firstCmd;
+    const char* m_secondCmd;
+    bool m_isDouble;
+
 public:
     explicit RedirectionCommand(const char *origin_cmd_line, const char *cmd_line);
 
 
-    virtual ~RedirectionCommand() {}
+    virtual ~RedirectionCommand();
 
     void execute() override;
 

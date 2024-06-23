@@ -821,21 +821,39 @@ void ListDirCommand::printContent(vector<string> entries, const char* directoryP
 
 
 RedirectionCommand::RedirectionCommand(const char *origin_cmd_line, const char *cmd_line) :
-Command (origin_cmd_line, cmd_line) {}
+Command (origin_cmd_line, cmd_line), m_isDouble(false){
+    int index = m_cmd_string.find_first_of('>'), start = 1;
+    const char* command = strdup(m_cmd_string.substr(0,index).c_str());
+    // commans > case (not command>)
+    if (m_cmd_string[index+start] == ' ')
+        start = 2;
+
+    // in case using '>>' instead of '>'
+    else if (m_cmd_string[index+start] == '>'){
+        m_isDouble = true;
+        start = 3;
+    }
+        
+    const char* file = strdup(m_cmd_string.substr(index+start,m_cmd_string.size()-index).c_str());
+
+    m_firstCmd = strdup((_trim(string(command)) + " ").c_str());
+    m_secondCmd = strdup((string(file)).c_str());
+
+    // Free malloced memory
+    free(const_cast<char*>(command));
+    free(const_cast<char*>(file));
+}
+
+RedirectionCommand::~RedirectionCommand(){
+    // Free malloced memory
+    free(const_cast<char*>(m_firstCmd));
+    free(const_cast<char*>(m_secondCmd));
+}
 
 void RedirectionCommand::execute() {
     // breaking the cmd_line to a command and filename
     SmallShell &smash = SmallShell::getInstance();
-    int index = m_cmd_string.find_first_of('>'), start = 1;
-    bool isDouble = (m_cmd_string[index+start] == '>');
-    const char* command = strdup(m_cmd_string.substr(0,index).c_str());
-    if (m_cmd_string[index] == ' ')
-        start = 2;
-    const char* file = strdup(m_cmd_string.substr(index+2,m_cmd_string.size()-index).c_str());
 
-    // in case using '>>' instead of '>'
-    if (isDouble)
-        file = strdup(m_cmd_string.substr(index+3,m_cmd_string.size()-index).c_str());
     // forking the process, the son implement the command and writing the output while the parent wait
     pid_t pid = fork();
     if (pid < 0)
@@ -844,10 +862,10 @@ void RedirectionCommand::execute() {
     // son processes
     if (pid == 0){
         int outputFile;
-        if (isDouble)
-            outputFile = open (file, O_WRONLY | O_CREAT | O_APPEND, 0644);
+        if (m_isDouble)
+            outputFile = open (m_secondCmd, O_WRONLY | O_CREAT | O_APPEND, 0644);
         else
-            outputFile = open (file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            outputFile = open (m_secondCmd, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     
         if (outputFile < 0){
             perror("smash error: open failed");
@@ -858,11 +876,8 @@ void RedirectionCommand::execute() {
             close(outputFile);
             exit(0);
         }
-        smash.executeCommand(command);
+        smash.executeCommand(m_firstCmd);
         close(outputFile);
-        //free the allocated memory
-        free(const_cast<char*>(command));
-        free(const_cast<char*>(file));
         exit(1);
     }
 
@@ -870,11 +885,9 @@ void RedirectionCommand::execute() {
     else{
         int status;
         waitpid(pid, &status, 0);
-
-        //free the allocated memory
-        free(const_cast<char*>(command));
-        free(const_cast<char*>(file));
+        
     }
+    
 }
 
 

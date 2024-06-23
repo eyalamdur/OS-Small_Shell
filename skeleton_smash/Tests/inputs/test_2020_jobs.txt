@@ -37,7 +37,6 @@ sleep 1002
 ^3
 ^C
 jobs
-bs
 sleep 3
 ^C
 sleep 3

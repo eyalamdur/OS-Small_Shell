@@ -48,7 +48,6 @@ jobs
 kill -9 2
 ^1
 jobs
-kill -9 3
 ^1
 jobs
 sleep 20&

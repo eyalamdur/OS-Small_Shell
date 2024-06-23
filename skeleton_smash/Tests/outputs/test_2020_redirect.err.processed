@@ -3,6 +3,3 @@ smash error: kill: invalid arguments
 smash error: open failed: No such file or directory
 smash error: open failed: No such file or directory
 smash error: open failed: Permission denied
-cat: new: No such file or directory
-rm: cannot remove 'new': No such file or directory
-cat: new: No such file or directory

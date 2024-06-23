@@ -34,29 +34,39 @@ mypid
 p
 s
 t
-smash> smash> smash> ew
-k
-mypid
-p
-s
-t
-smash> smash> smash> ew
-k
+smash> smash> k
 mypid
 new
 p
 s
 t
-smash> ew
-k
+smash> k
 mypid
 new
 p
 s
 t
-smash> smash> smash> smash> smash> smash> ew
-k
+smash> smash> smash> k
 mypid
+new
+p
+s
+t
+smash> k
+mypid
+new
+p
+s
+t
+smash> smash> smash> k
+mypid
+new
+p
+s
+t
+smash> smash> smash> k
+mypid
+new
 p
 s
 t

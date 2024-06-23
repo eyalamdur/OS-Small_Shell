@@ -6,6 +6,7 @@
 #include <set>
 #include <memory>
 
+
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 #define CD_COMMAND_ARGS_NUM (2)
@@ -66,13 +67,19 @@ public:
 };
 
 class PipeCommand : public Command {
-    // TODO: Add your data members
+protected:
+    string m_firstCmd;
+    string m_secondCmd;
+    bool m_isErr;
+
 public:
     PipeCommand(const char* origin_cmd_line, const char *cmd_line);
 
     virtual ~PipeCommand() {}
 
     void execute() override;
+    void createTempFile(string content);
+    void deleteTempFile();
 };
 
 class WatchCommand : public Command {
@@ -293,6 +300,7 @@ private:
     bool m_proceed;
     bool m_stopWatch;
     map<string, string>* m_alias;
+    vector<string> m_aliasToPrint;
 
 public:
     const static set<string> COMMANDS;

@@ -1,0 +1,12 @@
+smash> smash> smash> [1] sleep 10&
+smash> smash> [1] sleep 10&
+[2] sleep 20&
+smash> smash> smash> [1] sleep 10&
+[2] sleep 20&
+[3] sleep 30&
+[4] sleep 40&
+smash> smash: sending SIGKILL signal to 4 jobs:
+3177: sleep 10&
+3178: sleep 20&
+3179: sleep 30&
+3180: sleep 40&

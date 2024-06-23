@@ -1,13 +1,13 @@
 sleep 100
-^Z
+^C
 sleep 200
-^Z
+^C
 sleep 300
-^Z
+^C
 sleep 400
-^Z
+^C
 sleep 500
-^Z
+^C
 jobs
 bg 3
 bg 4

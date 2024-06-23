@@ -1,7 +1,7 @@
 echo submitted by Eran
 bg
 sleep 100
-^Z
+^C
 sleep 200&
 jobs 
 bg 2
@@ -10,9 +10,9 @@ bg 1 5
 bg 1
 jobs
 sleep 300
-^Z
+^C
 sleep 400
-^Z
+^C
 sleep 500&
 bg
 jobs

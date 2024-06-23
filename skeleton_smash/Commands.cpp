@@ -107,7 +107,8 @@ const set<string> SmallShell::COMMANDS = {"chprompt", "showpid", "pwd", "cd", "j
 };
 
 SmallShell::SmallShell() : m_fg_process(ERROR_VALUE), m_prompt("smash"),  m_plastPwd(nullptr),  
-                        m_jobList(new JobsList()), m_proceed(true), m_stopWatch(false), m_alias(new map<string, string>){}
+                        m_jobList(new JobsList()), m_proceed(true), m_stopWatch(false), m_alias(new map<string, string>),
+                        m_aliasToPrint(vector<string>()) {}
 
 SmallShell::~SmallShell() {
     if (m_plastPwd)
@@ -149,16 +150,32 @@ void SmallShell::quit() {
 }
 
 void SmallShell::addAlias(string name, string command) {
-    if (m_alias->find(name) == m_alias->end() && COMMANDS.find(name) == COMMANDS.end())
+    if (m_alias->find(name) == m_alias->end() && COMMANDS.find(name) == COMMANDS.end()){
         (*m_alias)[name] = command;
+        m_aliasToPrint.push_back(name);
+        m_aliasToPrint.push_back(command);
+    }
     else
         cerr << "smash error: alias: " << name << " already exists or is a reserved command" << endl;
 }
 
 void SmallShell::removeAlias(vector<string> args) {
     for (int i = 1; i < (int)args.size(); i++){
-        if (m_alias->find(args[i]) != m_alias->end())
+        // checking if the arguments are aliases
+        auto it = m_alias->find(args[i]);
+        //case an argument is an alias
+        if (it != m_alias->end()){
+            //finding the alias in the printing vector
+            auto aliasIt = find(m_aliasToPrint.begin(), m_aliasToPrint.end(), it->first);
+            //removing the match 'name', 'command' from the printing vector
+            if (aliasIt != m_aliasToPrint.end() && next(aliasIt) != m_aliasToPrint.end()){
+                m_aliasToPrint.erase(next(aliasIt));
+                m_aliasToPrint.erase(aliasIt);
+            }
+            //removing the tuple (name,command) from the map
             m_alias->erase(args[i]);
+        }
+        //case an argument isn't an alias
         else{
             cerr << "smash error: unalias: " << args[i] << " alias does not exist" << endl;
             break;
@@ -167,9 +184,9 @@ void SmallShell::removeAlias(vector<string> args) {
 }
 
 void SmallShell::printAlias() {
-    for (auto& pair : *m_alias){
-        cout << pair.first << "='" << pair.second << "'" << endl;
-    }
+    //printing the aliases by the order of appending
+    for (int i = 0; i < (int)m_aliasToPrint.size(); i+=2)
+        cout << m_aliasToPrint[i] << "='" << m_aliasToPrint[i+1] << "'" << endl;
 }
 
 char* SmallShell::extractCommand(const char* cmd_l,string &firstWord){
@@ -201,7 +218,9 @@ char* SmallShell::extractCommand(const char* cmd_l,string &firstWord){
 Command *SmallShell::CreateCommand(const char *cmd_line) {
     string firstWord;
     char* newCmdLine = extractCommand(cmd_line, firstWord);
-    if (string(newCmdLine).find('>') != string::npos)
+    if (firstWord.compare("alias") == 0)
+        return new aliasCommand(cmd_line, newCmdLine);
+    else if (string(newCmdLine).find('>') != string::npos)
         return new RedirectionCommand(cmd_line, newCmdLine);
     else if (string(newCmdLine).find('|') != string::npos)
         return new PipeCommand(cmd_line, newCmdLine);
@@ -211,12 +230,10 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new ChangePromptCommand(cmd_line, newCmdLine);
     else if (firstWord.compare("showpid") == 0)
         return new ShowPidCommand(cmd_line, newCmdLine);
-    else if (firstWord.compare("cd") == 0) 
+    else if (firstWord.compare("cd") == 0)
         return new ChangeDirCommand(cmd_line, newCmdLine, getPlastPwdPtr());
-    else if (firstWord.compare("quit") == 0) 
+    else if (firstWord.compare("quit") == 0)
         return new QuitCommand(cmd_line, newCmdLine, getJobsList());
-    else if (firstWord.compare("alias") == 0)
-        return new aliasCommand(cmd_line, newCmdLine);
     else if (firstWord.compare("unalias") == 0)
         return new unaliasCommand(cmd_line, newCmdLine);
     else if (firstWord.compare("jobs") == 0) 
@@ -254,7 +271,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
         pid_t pid = fork();
 
         if (pid == ERROR_VALUE) {
-            cerr << "Error forking process." << endl;
+            perror("Error forking process");
             delete cmd;
             return;
         }
@@ -446,6 +463,13 @@ aliasCommand::aliasCommand(const char* origin_cmd_line, const char *cmd_line) : 
         command[i] = m_cmd_string[equals + 2 + i];
 
     command[length] = '\0';
+    //trimming the command line from '&' and ' '
+    int j = 1;
+    while (command[length-j] == '\'' || command[length-j] == ' '){
+        command[length-j] = '\0';
+        j++;
+    }
+
     length = equals - space - 1;
     
     char name[length + 1];
@@ -460,7 +484,6 @@ aliasCommand::aliasCommand(const char* origin_cmd_line, const char *cmd_line) : 
 void aliasCommand::execute() {
     const regex aliasRegex("^alias [a-zA-Z0-9_]+='[^']*'$");
     SmallShell &smash = SmallShell::getInstance();
-
     // Print alias commands list
     if (getArgCount() == 1)
         smash.printAlias();
@@ -602,7 +625,7 @@ KillCommand::KillCommand(const char* origin_cmd_line, const char *cmd_line, Jobs
 /* Execute method to kill given jobID. */
 void KillCommand::execute() {
     vector<string> args = getArgs();
-
+    int signum, jobID;
     // Validate the number of arguments
     if (args.size() != 3) {
         cerr << "smash error: kill: invalid arguments" << endl;
@@ -610,21 +633,27 @@ void KillCommand::execute() {
     }
 
     // Get signal number and job ID from command arguments
-    int signum = stoi(args[1].substr(1));
-    int jobID = stoi(args[2]);
-
-    // Get job entry by job ID
-    JobsList::JobEntry* jobEntry = m_jobsList->getJobById(jobID);
-    if (jobEntry == nullptr) {
-        cerr << "smash error: kill: job-id " << jobID << " does not exist" << endl;
+    try{
+        signum = stoi(args[1]);
+        jobID = stoi(args[2]);
+    }
+    catch(...){
+        cerr << "smash error: kill: invalid arguments" << endl;
         return;
     }
 
-    // Send the specified signal to the job
-    if (kill(jobEntry->getProcessID(), signum) == 0)
-        cout << "signal number " << signum << " was sent to pid " << jobEntry->getProcessID() << endl;
-    else
-        perror("kill error");
+        // Get job entry by job ID
+        JobsList::JobEntry* jobEntry = m_jobsList->getJobById(jobID);
+        if (jobEntry == nullptr) {
+            cerr << "smash error: kill: job-id " << jobID << " does not exist" << endl;
+            return;
+        }
+
+        // Send the specified signal to the job
+        if (kill(jobEntry->getProcessID(), signum) == 0)
+            cout << "signal number " << signum << " was sent to pid " << jobEntry->getProcessID() << endl;
+        else
+            cerr << "kill error" << endl;
 }
 
 /*---------------------------------------------------------------------------------------------------*/
@@ -668,7 +697,7 @@ void ExternalCommand::runSimpleCommand(const string& cmd) {
     execvp(args[0], args);
 
     // Handle execvp failure
-    cerr << "External command execution failed" << endl;
+    perror("External command execution failed");
     exit(1);
 }
 
@@ -678,7 +707,7 @@ void ExternalCommand::runComplexCommand(const string& cmd) {
     execlp("bash", "bash", "-c", cmd.c_str(), (char *)nullptr);
 
     // If execlp returns, an error occurred
-    cerr << "External command execution failed" << endl;
+    perror("External command execution failed");
     exit(1);
 }
 
@@ -786,16 +815,16 @@ void RedirectionCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
     int index = m_cmd_string.find_first_of('>');
     bool isDouble = (m_cmd_string[index+1] == '>');
-    const char* command = strdup(m_cmd_string.substr(0,index).c_str());
-    const char* file = strdup(m_cmd_string.substr(index+1,m_cmd_string.size()-index).c_str());
+    const char* command = strdup(m_cmd_string.substr(0,index-1).c_str());
+    const char* file = strdup(m_cmd_string.substr(index+2,m_cmd_string.size()-index).c_str());
 
     // in case using '>>' instead of '>'
     if (isDouble)
-        file = m_cmd_string.substr(index+2,m_cmd_string.size()-index).c_str();
+        file = strdup(m_cmd_string.substr(index+3,m_cmd_string.size()-index).c_str());
     // forking the process, the son implement the command and writing the output while the parent wait
     pid_t pid = fork();
     if (pid < 0)
-        cerr << "failed to fork" << endl;
+        perror("failed to fork");
         
     // son processes
     if (pid == 0){
@@ -806,11 +835,11 @@ void RedirectionCommand::execute() {
             outputFile = open (file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     
         if (outputFile < 0){
-            cerr << "failed to open" << endl;
+            perror("failed to open");
             exit(0);
         }
         if (dup2(outputFile, STDOUT_FILENO) < 0){
-            cerr << "dup2 fail" << endl;
+            perror("dup2 fail");
             close(outputFile);
             exit(0);
         }
@@ -843,10 +872,7 @@ void GetUserCommand::execute() {
         cerr << "smash error: getuser: too many arguments" << endl;
         return;
     }
-    if (getArgCount() == 1) {
-        cerr << "smash error: getuser: too few arguments" << endl;
-        return;
-    }
+
     try {
         pid_t pid = static_cast<pid_t>(stoi(getArgs()[1]));
         printUserByPid(pid);
@@ -856,21 +882,30 @@ void GetUserCommand::execute() {
     }
 }
 
+// changes and additions been made according to piazza @92 and @57_f3 @70
 void GetUserCommand::printUserByPid(pid_t pid) {
     //building the path to the status file using the given pid
     string status = "/proc/" + to_string(pid) + "/status";
     // opening the status file
-    ifstream statusFile(status);
-    if (!statusFile.is_open())
-        throw exception();
-
+    int fileDirectory = open(status.c_str(), O_RDONLY);
+    char buffer [BIG_NUMBER];
+    string statusFile;
+    ssize_t size;
+    do {
+        size = read(fileDirectory, buffer, BIG_NUMBER-1);
+        buffer[size] = '\0';
+        statusFile += buffer;
+    }
+    while (size > 0);
+    close (fileDirectory);
     // Variables to store UID and GID
     uid_t uid = ERROR_VALUE;
     gid_t gid = ERROR_VALUE;
 
     // Read the file line by line
+    istringstream lines (statusFile);
     string line;
-    while (getline(statusFile, line)) {
+    while (getline(lines, line)) {
         if (line.substr(0, 4) == "Uid:") {
             istringstream input(line);
             string uidLabel;
@@ -891,12 +926,9 @@ void GetUserCommand::printUserByPid(pid_t pid) {
         cout << "User: " << user->pw_name << endl;
         cout << "Group: " << group->gr_name << endl;
     }
-    else{
-        if (!user)
-            cerr << "failed to get the information for UID: " << uid << endl;
-        if (!group)
-            cerr << "failed to get the information for GID: " << gid << endl;
-    }
+    else
+        throw exception();
+
 }
 
 
@@ -944,7 +976,7 @@ string WatchCommand::getWatchCommand(int& interval){
     catch (...) {
         start--;
         if (SmallShell::COMMANDS.find(args[1]) == SmallShell::COMMANDS.end()){
-            cerr << "External command execution failed" << endl;
+            perror("External command execution failed");
             return "";
         }
     }
@@ -979,71 +1011,107 @@ void WatchCommand::updateInterval(string value, int& interval){
 
 
 /* C'tor for pipe command class */
-PipeCommand::PipeCommand(const char *origin_cmd_line, const char *cmd_line) : Command(origin_cmd_line, cmd_line){}
+PipeCommand::PipeCommand(const char *origin_cmd_line, const char *cmd_line) : Command(origin_cmd_line, cmd_line){
+    // Checking if its '|' or '|&| pipe
+    char c ='|';
+    bool m_isErr = (m_cmd_string[m_cmd_string.find_first_of(c)+1] == '&');
+    if (m_isErr)
+        c = '&';
+
+    // Split the commands
+    string command1 = (m_isErr ? m_cmd_string.substr(0, m_cmd_string.find_first_of(c)-1)
+            : m_cmd_string.substr(0, m_cmd_string.find_first_of(c)));
+    string command2 = m_cmd_string.substr(m_cmd_string.find_first_of(c) + 1);
+    m_firstCmd = _trim(command1);
+    m_secondCmd = _trim(command2) + " ";
+
+}
 
 void PipeCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
 
-    // checking if its '|' or '|&| pipe
-    char c ='|';
-    bool isErr = (m_cmd_string[m_cmd_string.find_first_of(c)+1] == '&');
-    if (isErr)
-        c = '&';
-
-    // Split the commands
-    string command1 = (isErr ? m_cmd_string.substr(0, m_cmd_string.find_first_of(c)-1)
-            : m_cmd_string.substr(0, m_cmd_string.find_first_of(c)));
-    string command2 = m_cmd_string.substr(m_cmd_string.find_first_of(c) + 1);
-    command1 = _trim(command1);
-    command2 = _trim(command2);
-
     // Create pipe
     int fd[2];
     if (pipe(fd) < 0) {
-        cerr << "pipe failed" << endl;
+        perror ("pipe failed");
         return;
     }
 
-    // Fork the first child (command1)
-    pid_t pid1 = fork();
-    if (pid1 < 0) {
-        cerr << "fork failed" << endl;
+    // First child process (command1)
+    pid_t firstPid = fork();
+    if (firstPid < 0) {
+        perror("fork failed");
         close(fd[0]);
         close(fd[1]);
         return;
     }
-    // First child process (command1)
-    if (pid1 == 0) {
+
+    if (firstPid == 0) {
+        setpgrp();
         close(fd[0]);
-        int outputChannel = (isErr ? STDERR_FILENO :  STDOUT_FILENO) ;
+        int outputChannel = (m_isErr ? STDERR_FILENO :  STDOUT_FILENO) ;
         if (dup2(fd[1], outputChannel) < 0) { //fd[1] is the writing end
             perror("dup2 failed");
             close(fd[1]);
-            exit(1);
+            return;
         }
+        smash.executeCommand(m_firstCmd.c_str());
         close(fd[1]);
-        const char* commandToExecute = strdup(command1.c_str());
-        smash.executeCommand(commandToExecute);
-        free(const_cast<char*>(commandToExecute));
         exit(0);
     }
+
+    // Second child process (command2)
+    pid_t secondPid = fork();
+    if (secondPid < 0) {
+        perror("fork failed");
+        close(fd[0]);
+        close(fd[1]);
+        return;
+    }
+
+    if (secondPid == 0) {
+        setpgrp();
+        if (dup2(fd[0], STDIN_FILENO) < 0) { //fd[1] is the writing end
+            perror("dup2 failed");
+            close(fd[1]);
+            return;
+        }
+        close(fd[0]);
+        close(fd[1]);
+        string temp;
+        cin >> temp;
+        cout << m_secondCmd+temp << endl;
+        smash.executeCommand((m_secondCmd+temp).c_str());
+        exit(0);
+    }
+
     //parent process
     int status;
-    waitpid(pid1, &status, 0);
-    close(fd[1]);
-//    if (dup2(fd[0], STDIN_FILENO) < 0) { // fd[0] is the reading end
-//        cerr << "dup2 failed" << endl;
-//        close(fd[0]);
-//        return;
-//    }
-    char buffer[BIG_NUMBER];
-    ssize_t size = read(fd[0], buffer, BIG_NUMBER);
     close(fd[0]);
-    buffer[size] = '\0';
-    const char* commandToExecute = strdup((command2 + " " + string(_trim(buffer))).c_str());
-    //const char* commandToExecute = strdup(command2.c_str());
-    smash.executeCommand(commandToExecute);
-    free(const_cast<char*>(commandToExecute));
+    close(fd[1]);
+    waitpid(firstPid, &status, 0);
+    waitpid(secondPid, &status, 0);
+}
+
+void PipeCommand::createTempFile(string content){
+    FILE *file;
+
+    // Open a file for writing
+    file = fopen("temp.txt", "w");
+    if (file == NULL)
+        perror("fopen");
+
+    // Write a string to the file
+    fputs(content.c_str(), file);
+
+    // Close the file
+    if (fclose(file) != 0)
+        perror("fclose");
+}
+
+void PipeCommand::deleteTempFile(){
+    remove("temp.txt");
+    return;
 }
 
 /*---------------------------------------------------------------------------------------------------*/

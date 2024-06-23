@@ -14,9 +14,9 @@ smash> smash> smash> [1] sleep 100&
 [7] sleep 700&
 [8] sleep 800&
 [9] sleep 900&
-smash> signal number 9 was sent to pid 21721
-smash> [1] sleep 100&
+smash> smash> [1] sleep 100&
 [2] sleep 200&
+[3] sleep 300&
 [4] sleep 400&
 [5] sleep 500&
 [6] sleep 600&
@@ -25,6 +25,7 @@ smash> [1] sleep 100&
 [9] sleep 900&
 smash> smash> [1] sleep 100&
 [2] sleep 200&
+[3] sleep 300&
 [4] sleep 400&
 [5] sleep 500&
 [6] sleep 600&
@@ -32,22 +33,25 @@ smash> smash> [1] sleep 100&
 [8] sleep 800&
 [9] sleep 900&
 [10] sleep 1000&
-smash> signal number 9 was sent to pid 21815
-smash> [1] sleep 100&
-[2] sleep 200&
-[4] sleep 400&
-[5] sleep 500&
-[6] sleep 600&
-[7] sleep 700&
-[8] sleep 800&
-[9] sleep 900&
 smash> smash> [1] sleep 100&
 [2] sleep 200&
+[3] sleep 300&
 [4] sleep 400&
 [5] sleep 500&
 [6] sleep 600&
 [7] sleep 700&
 [8] sleep 800&
 [9] sleep 900&
-[10] sleep 1001&
-smash> sleep 1001& 21899
+[10] sleep 1000&
+smash> smash> [1] sleep 100&
+[2] sleep 200&
+[3] sleep 300&
+[4] sleep 400&
+[5] sleep 500&
+[6] sleep 600&
+[7] sleep 700&
+[8] sleep 800&
+[9] sleep 900&
+[10] sleep 1000&
+[11] sleep 1001&
+smash> sleep 1001& 1833

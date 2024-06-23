@@ -1022,18 +1022,15 @@ PipeCommand::PipeCommand(const char *origin_cmd_line, const char *cmd_line) : Co
     string command1 = (m_isErr ? m_cmd_string.substr(0, m_cmd_string.find_first_of(c)-1)
             : m_cmd_string.substr(0, m_cmd_string.find_first_of(c)));
     string command2 = m_cmd_string.substr(m_cmd_string.find_first_of(c) + 1);
-<<<<<<< HEAD
-    command1 = _trim(command1);
-    command2 = _trim(command2) + " ";
-=======
     m_firstCmd = _trim(command1);
     m_secondCmd = _trim(command2) + " ";
+//    cout << m_firstCmd << endl;
+//    cout << m_secondCmd << endl;
 
 }
 
 void PipeCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
->>>>>>> Testing
 
     // Create pipe
     int fd[2];
@@ -1050,13 +1047,8 @@ void PipeCommand::execute() {
         close(fd[1]);
         return;
     }
-<<<<<<< HEAD
-    // First child process (command1)
-    if (pid1 == 0) {
-=======
 
     if (firstPid == 0) {
->>>>>>> Testing
         setpgrp();
         close(fd[0]);
         int outputChannel = (m_isErr ? STDERR_FILENO :  STDOUT_FILENO) ;
@@ -1067,76 +1059,10 @@ void PipeCommand::execute() {
         }
         smash.executeCommand(m_firstCmd.c_str());
         close(fd[1]);
-<<<<<<< HEAD
         //write(fd[1], command2.c_str() , BIG_NUMBER);
-        const char* commandToExecute = strdup(command1.c_str());
+        const char* commandToExecute = strdup(m_firstCmd.c_str());
         smash.executeCommand(commandToExecute);
         free(const_cast<char*>(commandToExecute));
-        exit(0);
-    }
-
-
-
-//     pid_t pid2 = fork();
-//     if (pid1 < 0) {
-//         cout << "fork failed" << endl;
-//         close(fd[0]);
-//         close(fd[1]);
-//         return;
-//     }
-//     if (pid2 == 0){
-//         setpgrp();
-//         close(fd[1]);
-//         if (dup2(fd[0], STDIN_FILENO) < 0){
-//             cout << "failed to dup2()" <<endl;
-//             close(fd[0]);
-//             return;
-//         }
-// //        char** argv = new char* [4];
-// //        argv[0] = const_cast<char*>("/bin/bash");
-// //        argv[1] = const_cast<char*>("-c");
-// //        argv[2] = const_cast<char*>(command2.c_str());
-// //        argv[3] = nullptr;
-//         close(fd[0]);
-//         string temp;
-//         getline(cin, temp);
-//         cout << "|" << temp << "|" << endl;
-//         cout << "|" << command2 << "|" << endl;
-//         smash.executeCommand((command2+temp).c_str());
-// //        execvp(command2.c_str(), nullptr);
-// //        cout << "execvp failed" << endl;
-//         exit(1);
-//     }
-    int status;
-    
-    waitpid(pid1, &status, 0);
-    // waitpid(pid2, &status, 0);
-    string temp;
-    dup2(fd[0], STDIN_FILENO);
-    getline(cin, temp);
-    cout << "|" << temp << "|" << endl;
-    cout << "|" << command2 << "|" << endl;
-    smash.executeCommand((command2+temp).c_str());
-    //dup2( STDIN_FILENO, fd[0]);
-    close(fd[1]);
-    close(fd[0]);
-    cout << "finished func" << endl;
-    //parent process
-
-//    if (dup2(fd[0], STDIN_FILENO) < 0) { // fd[0] is the reading end
-//        cout << "dup2 failed" << endl;
-//        close(fd[0]);
-//        return;
-//    }
-//    char buffer[BIG_NUMBER];
-//    ssize_t size = read(fd[0], buffer, BIG_NUMBER);
-//    close(fd[0]);
-//    buffer[size] = '\0';
-//    const char* commandToExecute = strdup((command2 + " " + string(_trim(buffer))).c_str());
-//    //const char* commandToExecute = strdup(command2.c_str());
-//    smash.executeCommand(commandToExecute);
-//    free(const_cast<char*>(commandToExecute));
-=======
         exit(0);
     }
 
@@ -1160,7 +1086,7 @@ void PipeCommand::execute() {
         close(fd[1]);
         string temp;
         cin >> temp;
-        cout << m_secondCmd+temp << endl;
+        //cout << m_secondCmd+temp << endl;
         smash.executeCommand((m_secondCmd+temp).c_str());
         exit(0);
     }
@@ -1192,7 +1118,6 @@ void PipeCommand::createTempFile(string content){
 void PipeCommand::deleteTempFile(){
     remove("temp.txt");
     return;
->>>>>>> Testing
 }
 
 /*---------------------------------------------------------------------------------------------------*/

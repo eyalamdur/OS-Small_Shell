@@ -7,7 +7,8 @@ GREENBG='\e[42m'
 BLUEBG='\e[44m'
 NC='\033[0m' # No Color
 
-TASKS=${TASKS:-30}
+TASKS=${TASKS:-20}
+TIMEOUT=15
 TESTS_INPUT=`pwd`/tests/inputs
 TESTS_GLOB=$TESTS_INPUT/${1:-test_*}
 TESTS_OUTPUT=`pwd`/tests/outputs
@@ -62,7 +63,7 @@ do_diff()
     i=0
     for test in $TESTS_GLOB; do
         test=$(basename -- "$test" .txt)
-        timeout 10 $CLEANER $TESTS_OUTPUT/$test.out $TESTS_OUTPUT/$test.err
+        timeout $TIMEOUT $CLEANER $TESTS_OUTPUT/$test.out $TESTS_OUTPUT/$test.err
         if [ $KEEP_ORIG -eq 0 ] ; then
             rm -f $TESTS_OUTPUT/$test.out $TESTS_OUTPUT/$test.err
         fi

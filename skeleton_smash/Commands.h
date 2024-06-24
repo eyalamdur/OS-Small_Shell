@@ -17,6 +17,7 @@
 #define MAX_SIGNAL_NUMBER (31)
 #define DEFAULT_NUM_RUNNING_JOBS (0)
 #define CHILD_ID (0)
+#define FORK_SUCCEED (0)
 #define ERROR_VALUE (-1)
 #define BIG_NUMBER (1000)
 
@@ -228,7 +229,7 @@ public:
 class ForegroundCommand : public BuiltInCommand {
 protected:
     JobsList* m_jobsList;
-
+    class InvalidArgument : public exception{};
 public:
     ForegroundCommand(const char* origin_cmd_line, const char *cmd_line, JobsList *jobs);
 

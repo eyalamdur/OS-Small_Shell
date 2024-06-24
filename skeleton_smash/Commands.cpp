@@ -583,20 +583,10 @@ ForegroundCommand::ForegroundCommand(const char* origin_cmd_line, const char* cm
 void ForegroundCommand::execute() {  
     SmallShell &smash = SmallShell::getInstance();
     int jobID;
-    // No job ID specified, select the job with the maximum job ID
-    if (getArgs().size() == 1){
-        // Check if the jobs list is empty
-        if (m_jobsList->isEmpty()) {
-            cerr << "smash error: fg: jobs list is empty" << endl;
-            return;
-        }
-        jobID = m_jobsList->getNextJobID() - 1;
-    }
-    else if (getArgs().size() == 2) {
+
+    if (getArgs().size() == 2) {
         try {
             jobID = stoi(getArgs()[1]);
-            if (jobID < 0)
-                stoi("a");  // Throw error
             if (m_jobsList->getJobById(jobID) == nullptr) {
                 cerr << "smash error: fg: job-id " << jobID << " does not exist" << endl;
                 return;
@@ -606,7 +596,18 @@ void ForegroundCommand::execute() {
             cerr << "smash error: fg: invalid arguments" << endl;
             return;
         }
-    } 
+    }
+
+    // No job ID specified, select the job with the maximum job ID
+    else if (getArgs().size() == 1){
+        // Check if the jobs list is empty
+        if (m_jobsList->isEmpty()) {
+            cerr << "smash error: fg: jobs list is empty" << endl;
+            return;
+        }
+        jobID = m_jobsList->getNextJobID() - 1;
+    }
+
     else {
         cerr << "smash error: fg: invalid arguments" << endl;
         return;
@@ -635,18 +636,26 @@ KillCommand::KillCommand(const char* origin_cmd_line, const char *cmd_line, Jobs
 void KillCommand::execute() {
     vector<string> args = getArgs();
     int signum, jobID;
-    // Validate the number of arguments
-    if (args.size() != 3) {
-        cerr << "smash error: kill: invalid arguments" << endl;
-        return;
-    }
-
-    // Get signal number and job ID from command arguments
+    JobsList::JobEntry* jobEntry;
+    
+    // Get valid jobID
     try{
-        signum = stoi(args[1]);
-        jobID = stoi(args[2]);
-        signum = signum < 0 ? -signum : MAX_SIGNAL_NUMBER + 1;
-        if (signum > MAX_SIGNAL_NUMBER)
+        if (args.size() > 2){
+            jobID = stoi(args[2]);
+
+            // // Get signal and job entry by job ID number from command argument
+            jobEntry = m_jobsList->getJobById(jobID);
+            if (jobEntry == nullptr) {
+                cerr << "smash error: kill: job-id " << jobID << " does not exist" << endl;
+                return;
+            }
+
+            signum = stoi(args[1]);
+            signum = signum < 0 ? -signum : signum;
+        }
+
+        // Validate the number of arguments
+        if (args.size() != 3) 
             throw InvalidArgument();
     }
     catch(...){
@@ -654,18 +663,11 @@ void KillCommand::execute() {
         return;
     }
 
-        // Get job entry by job ID
-        JobsList::JobEntry* jobEntry = m_jobsList->getJobById(jobID);
-        if (jobEntry == nullptr) {
-            cerr << "smash error: kill: job-id " << jobID << " does not exist" << endl;
-            return;
-        }
-
-        // Send the specified signal to the job
-        if (kill(jobEntry->getProcessID(), signum) == 0)
-            cout << "signal number " << signum << " was sent to pid " << jobEntry->getProcessID() << endl;
-        else
-            perror("smash error: kill failed");
+    // Send the specified signal to the job
+    if (kill(jobEntry->getProcessID(), signum) == 0)
+        cout << "signal number " << signum << " was sent to pid " << jobEntry->getProcessID() << endl;
+    else
+        perror("smash error: kill failed");
 }
 
 /*---------------------------------------------------------------------------------------------------*/

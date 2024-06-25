@@ -964,9 +964,9 @@ void RedirectionCommand::execute()
     {
         int outputFile;
         if (m_isDouble)
-            outputFile = open(m_secondCmd, O_WRONLY | O_CREAT | O_APPEND, 0644);
+            outputFile = open(m_secondCmd, O_WRONLY | O_CREAT | O_APPEND, 0666);
         else
-            outputFile = open(m_secondCmd, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            outputFile = open(m_secondCmd, O_WRONLY | O_CREAT | O_TRUNC, 0666);
 
         if (outputFile < 0)
         {
@@ -1109,12 +1109,10 @@ string WatchCommand::getWatchCommand(int &interval)
     string command;
 
     // Get interval
-    try
-    {
+    try{
         updateInterval(args[1], interval);
     }
-    catch (InvalidInterval &e)
-    {
+    catch (InvalidInterval &e){
         cerr << "smash error: watch: invalid interval" << endl;
         return "";
     }

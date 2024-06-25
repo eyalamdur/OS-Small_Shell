@@ -1,0 +1,29 @@
+smash> smash> smash> smash> smash> smash> smash> smash> smash> smash> smash> ch1='chprompt'
+ch2='chprompt beeri'
+s='sleep'
+s1='sleep 10&'
+q='quit'
+qk='quit kill'
+as='alias'
+h='h'
+smash> smash> smash> smash> smash> ch1='chprompt'
+ch2='chprompt beeri'
+s='sleep'
+qk='quit kill'
+h='h'
+smash> eyal> beeri> smash> smash> smash> [1] s 10&
+smash> smash> ch1='chprompt'
+ch2='chprompt beeri'
+s='sleep'
+qk='quit kill'
+h='h'
+as='alias'&
+smash> smash> ch1='chprompt'
+ch2='chprompt beeri'
+s='sleep'
+qk='quit kill'
+h='h'
+as='alias'&
+b='b'
+smash> smash> smash: sending SIGKILL signal to 1 jobs:
+1234: s 100&

@@ -16,6 +16,8 @@
 #define DEFAULT_BUFFER_SIZE (256)
 #define MAX_SIGNAL_NUMBER (31)
 #define DEFAULT_NUM_RUNNING_JOBS (0)
+#define MIN_SIGNUM (0)
+#define MAX_INTERVAL (0)
 #define CHILD_ID (0)
 #define FORK_SUCCEED (0)
 #define ERROR_VALUE (-1)
@@ -24,7 +26,6 @@
 using namespace std;
 
 class Command {
-// TODO: Add your data members
 public:
     Command(const char *origin_cmd_line, const char *cmd_line, bool isBgCmd = false);
     virtual ~Command();
@@ -38,6 +39,7 @@ public:
     void setCommand(string cmd);
     bool isBackgroundCommand() const;
     virtual bool isExternalCommand() const;
+    virtual bool isWatchCommand() const;
 
     //virtual void prepare();
     //virtual void cleanup();
@@ -86,13 +88,15 @@ class WatchCommand : public Command {
 private:
     class InvalidInterval : public exception{};
 public:
-    WatchCommand(const char *origin_cmd_line, const char *cmd_line);
+    WatchCommand(const char *origin_cmd_line, const char *cmd_line, bool isBg);
     virtual ~WatchCommand() {}
     
     void execute() override;
     string getWatchCommand(int& interval);
     void extractWatchCommand(string& command, int start, vector<string> args, int argsNum);
     void updateInterval(string value, int& interval);
+    void watchLoop(string command, int interval);
+    bool isExternalCommand() const override;
 };
 
 class RedirectionCommand : public Command {

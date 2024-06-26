@@ -105,12 +105,7 @@ string _removeBackgroundSignForString(string cmd)
 /*----------------------------------------- SmallShell Class ----------------------------------------*/
 /*---------------------------------------------------------------------------------------------------*/
 const set<string> SmallShell::COMMANDS = {"chprompt", "showpid", "pwd", "cd", "jobs", "fg",
-                                          "quit", "kill", "alias", "unalias", "ls", "mkdir", "cp", "mv", "rm", "touch", "cat", "grep",
-                                          "find", "awk", "sed", "sort", "wc", "head", "tail", "chmod", "chown", "ps", "top", "tar",
-                                          "gzip", "unzip", "ssh", "scp", "chmod", "chown", "echo", "basename", "dirname", "type",
-                                          "which", "source", "export", "history", "date", "cal", "man", "pushd", "popd", "bg",
-                                          "nohup", "killall", "ifconfig", "netstat", "ping", "traceroute", "nc", "telnet", "lsof",
-                                          "less", "more", "df", "du", "free", "uname", "w", "who", "last", "uptime", "banner", "notify-send", "shutdown", "sleep"};
+"quit", "kill", "alias", "unalias", ">", "<", "|", "listdir", "getuser", "watch"};
 
 SmallShell::SmallShell() : m_fg_process(ERROR_VALUE), m_prompt("smash"), m_plastPwd(nullptr),
                            m_jobList(new JobsList()), m_proceed(true), m_stopWatch(false), m_alias(new map<string, string>),

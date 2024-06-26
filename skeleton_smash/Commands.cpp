@@ -237,8 +237,7 @@ char *SmallShell::extractCommand(const char *cmd_l, string &firstWord)
 }
 
 /* Creates and returns a pointer to Command class which matches the given command line (cmd_line) */
-Command *SmallShell::CreateCommand(const char *cmd_line)
-{
+Command *SmallShell::CreateCommand(const char *cmd_line){
     string firstWord;
     char *newCmdLine = extractCommand(cmd_line, firstWord);
     // case the alias command is background, need to trim the '&'
@@ -273,7 +272,7 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
     else if (firstWord.compare("getuser") == 0)
         return new GetUserCommand(cmd_line, newCmdLine);
     else if (firstWord.compare("watch") == 0)
-        return new WatchCommand(cmd_line, newCmdLine);
+        return new WatchCommand(cmd_line, newCmdLine, _isBackgroundCommand(cmd_line) || isBg);
     else
         return new ExternalCommand(cmd_line, newCmdLine, _isBackgroundCommand(cmd_line) || isBg);
 
@@ -288,10 +287,28 @@ void SmallShell::executeCommand(const char *cmd_line)
     m_jobList->removeFinishedJobs();
 
     // Invalid Command
-    if (cmd == nullptr)
-    {
+    if (cmd == nullptr){
         printToTerminal("Unknown Command");
         return;
+    }
+
+    if(cmd->isWatchCommand() && cmd->isBackgroundCommand()){
+        // First child process (command1)
+        pid_t pid = fork();
+        if (pid == ERROR_VALUE){
+            perror("smash error: fork failed");
+            return;
+        }
+
+        // Child process
+        if (pid == CHILD_ID)
+            setpgrp();
+
+        // Parent process
+        if (pid > CHILD_ID){
+            getJobsList()->addJob(cmd, pid);
+            return;
+        }
     }
 
     if (cmd->isExternalCommand())
@@ -431,9 +448,12 @@ bool Command::isBackgroundCommand() const
     return m_bgCmd;
 }
 
-bool Command::isExternalCommand() const
-{
+bool Command::isExternalCommand() const{
     return false; // Default implementation indicates it's not an ExternalCommand
+}
+
+bool Command::isWatchCommand() const{
+    return false; // Default implementation indicates it's not an WatchCommand
 }
 
 /*---------------------------------------------------------------------------------------------------*/
@@ -714,7 +734,7 @@ void KillCommand::execute(){
         if (args.size() > 2){
             jobID = stoi(args[2]);
             signum = stoi(args[1]);
-            signum = -signum;
+            signum = signum < MIN_SIGNUM ? -signum : throw InvalidArgument();
         }
 
         // Validate the number of arguments
@@ -755,7 +775,6 @@ ExternalCommand::ExternalCommand(const char *origin_cmd_line, const char *cmd_li
 /* Execute method to an external command. */
 void ExternalCommand::execute()
 {
-
     // Check if the command line contains special characters like '*' or '?'
     string cmd = getCommand();
     cmd = _removeBackgroundSignForString(cmd);
@@ -1068,12 +1087,10 @@ void GetUserCommand::printUserByPid(pid_t pid)
 }
 
 /* C'tor for WatchCommand command class */
-WatchCommand::WatchCommand(const char *origin_cmd_line, const char *cmd_line) : Command(origin_cmd_line, cmd_line) {}
+WatchCommand::WatchCommand(const char *origin_cmd_line, const char *cmd_line, bool isBg) : Command(origin_cmd_line, cmd_line, isBg) {}
 
 void WatchCommand::execute()
 {
-    SmallShell &smash = SmallShell::getInstance();
-
     // Check for interval and command in the arguments
     int interval = DEFAULT_INTERVAL_TIME;
     string command = getWatchCommand(interval);
@@ -1082,19 +1099,7 @@ void WatchCommand::execute()
     if (command == "")
         return;
 
-    // Make sure to reset stopWatch
-    smash.setStopWatch(false);
-    while (!smash.getStopWatch())
-    {
-        // Clear the screen before displaying new output
-        smash.executeCommand("clear");
-
-        // Execute the specified command
-        smash.executeCommand(command.c_str());
-
-        // Wait for the specified interval before executing the command again
-        sleep(interval);
-    }
+    watchLoop(command, interval);
 }
 
 string WatchCommand::getWatchCommand(int &interval)
@@ -1149,8 +1154,30 @@ void WatchCommand::updateInterval(string value, int &interval)
     // Ensure the string represents a non-negative integer
     size_t pos;
     interval = stoi(value, &pos);
-    if (interval <= 0)
+    if (interval >= MAX_INTERVAL)
         throw InvalidInterval();
+}
+
+void WatchCommand::watchLoop(string command, int interval){
+    SmallShell &smash = SmallShell::getInstance();
+    // Make sure to reset stopWatch
+    smash.setStopWatch(false);
+    while (!smash.getStopWatch()){
+        // Clear the screen before displaying new output
+        if (!isBackgroundCommand())
+            smash.executeCommand("clear");
+
+        // Execute the specified command
+        if (!isBackgroundCommand())
+            smash.executeCommand(command.c_str());
+
+        // Wait for the specified interval before executing the command again
+        sleep(interval);
+    }
+}
+
+bool WatchCommand::isExternalCommand() const{
+    return true;
 }
 
 /* C'tor for pipe command class */

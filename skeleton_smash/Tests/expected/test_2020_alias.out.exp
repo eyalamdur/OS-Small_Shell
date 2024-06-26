@@ -25,5 +25,6 @@ qk='quit kill'
 h='h'
 as='alias'&
 b='b'
-smash> smash> smash: sending SIGKILL signal to 1 jobs:
-1234: s 100&
+smash> smash> smash: sending SIGKILL signal to 2 jobs:
+2: s 10&
+3: s 100&

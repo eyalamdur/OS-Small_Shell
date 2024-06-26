@@ -292,28 +292,7 @@ void SmallShell::executeCommand(const char *cmd_line)
         return;
     }
 
-    if(cmd->isWatchCommand() && cmd->isBackgroundCommand()){
-        // First child process (command1)
-        pid_t pid = fork();
-        if (pid == ERROR_VALUE){
-            perror("smash error: fork failed");
-            return;
-        }
-
-        // Child process
-        if (pid == CHILD_ID)
-            setpgrp();
-
-        // Parent process
-        if (pid > CHILD_ID){
-            getJobsList()->addJob(cmd, pid);
-            return;
-        }
-    }
-
-    if (cmd->isExternalCommand())
-    {
-
+    if (cmd->isExternalCommand()){
         // Fork a new process
         pid_t pid = fork();
 
@@ -1106,29 +1085,26 @@ string WatchCommand::getWatchCommand(int &interval)
 {
     vector<string> args = getArgs();
     int argsNum = getArgCount(), start = 2;
-    string command;
+    string command = "";
+
+    if (argsNum == 1){
+        cerr << "smash error: watch: command not specified" << endl;
+        return "";
+    }
 
     // Get interval
     try{
-        updateInterval(args[1], interval);
-    }
-    catch (InvalidInterval &e){
-        cerr << "smash error: watch: invalid interval" << endl;
-        return "";
-    }
-    catch (...)
-    {
-        start--;
-        if (SmallShell::COMMANDS.find(args[1]) == SmallShell::COMMANDS.end())
-        {
-            perror("smash error: External command failed");
-            return "";
+        if (updateInterval(args[1], interval)){
+            if (argsNum == 2){
+                cerr << "smash error: watch: command not specified" << endl;
+                return "";
+            }
         }
+        else
+            start--;
     }
-
-    if (argsNum == 1)
-    {
-        cerr << "smash error: watch: command not specified" << endl;
+    catch (...){
+        cerr << "smash error: watch: invalid interval" << endl;
         return "";
     }
 
@@ -1140,8 +1116,7 @@ string WatchCommand::getWatchCommand(int &interval)
 void WatchCommand::extractWatchCommand(string &command, int start, vector<string> args, int argsNum)
 {
     // Concatenate all arguments for the command from start
-    for (int i = start; i < argsNum; ++i)
-    {
+    for (int i = start; i < argsNum; ++i){
         command += args[i] + " ";
     }
 
@@ -1149,35 +1124,51 @@ void WatchCommand::extractWatchCommand(string &command, int start, vector<string
     command.pop_back();
 }
 
-void WatchCommand::updateInterval(string value, int &interval)
+bool WatchCommand::updateInterval(string value, int &interval)
 {
     // Ensure the string represents a non-negative integer
     size_t pos;
-    interval = stoi(value, &pos);
-    if (interval >= MAX_INTERVAL)
-        throw InvalidInterval();
+    if (value[0] == '-'){
+        interval = stoi(value, &pos);
+        if (interval >= MAX_INTERVAL)
+            throw InvalidInterval();
+        return true;
+    }
+    return false;
 }
 
 void WatchCommand::watchLoop(string command, int interval){
     SmallShell &smash = SmallShell::getInstance();
     // Make sure to reset stopWatch
     smash.setStopWatch(false);
+    
     while (!smash.getStopWatch()){
         // Clear the screen before displaying new output
         if (!isBackgroundCommand())
             smash.executeCommand("clear");
 
-        // Execute the specified command
-        if (!isBackgroundCommand())
-            smash.executeCommand(command.c_str());
+        pid_t pid = fork();
+        if (pid == ERROR_VALUE){
+            perror("smash error: fork failed");
+            return;
+        }
 
+        // Child process
+        if (pid == CHILD_ID){
+            setpgrp();
+            smash.executeCommand(command.c_str());
+            exit(0);
+        }
+
+        // Parent process
+        if (pid > CHILD_ID){
+            int status;
+            waitpid(pid, &status, 0);
+        }
+    
         // Wait for the specified interval before executing the command again
         sleep(interval);
     }
-}
-
-bool WatchCommand::isExternalCommand() const{
-    return true;
 }
 
 /* C'tor for pipe command class */

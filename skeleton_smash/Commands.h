@@ -94,9 +94,8 @@ public:
     void execute() override;
     string getWatchCommand(int& interval);
     void extractWatchCommand(string& command, int start, vector<string> args, int argsNum);
-    void updateInterval(string value, int& interval);
+    bool updateInterval(string value, int& interval);
     void watchLoop(string command, int interval);
-    bool isExternalCommand() const override;
 };
 
 class RedirectionCommand : public Command {

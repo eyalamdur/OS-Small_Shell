@@ -167,6 +167,11 @@ void SmallShell::addAlias(string name, string command, string originCommand)
         m_aliasToPrint.push_back(name);
         int equals = originCommand.find_first_of('='); // position of the '=' sign
         string printCommand = originCommand.substr(equals, originCommand.size() - equals);
+        int i = printCommand.size()-1;
+        while (printCommand[i]!='\''){
+            printCommand[i]='\0';
+            i--;
+        }
         m_aliasToPrint.push_back(printCommand);
     }
     else

@@ -1,8 +1,8 @@
-mkdir -p combinedTest
-echo HELLO > combinedTest/t.txt
-alias lstf='ls > combinedTest/ls.txt'&
+mkdir newdir
+echo HELLO > newdir/t.txt
+alias lstf='ls > newdir/ls.txt'
 lstf
-cat combinedTest/ls.txt
+cat newdir/ls.txt
 alias
 alias pipe='ls | grep Commands'    &
 alias q='quit kill'
@@ -11,5 +11,5 @@ unalias pipe lstf
 alias
 sleep 10&
 sleep 10&
-rm -rf combinedTest
+rm -rf newdir
 q > quit.txt

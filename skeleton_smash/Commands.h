@@ -39,7 +39,6 @@ public:
     void setCommand(string cmd);
     bool isBackgroundCommand() const;
     virtual bool isExternalCommand() const;
-    virtual bool isWatchCommand() const;
 
     //virtual void prepare();
     //virtual void cleanup();

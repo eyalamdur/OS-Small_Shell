@@ -167,11 +167,7 @@ void SmallShell::addAlias(string name, string command, string originCommand)
         m_aliasToPrint.push_back(name);
         int equals = originCommand.find_first_of('='); // position of the '=' sign
         string printCommand = originCommand.substr(equals, originCommand.size() - equals);
-        int i = printCommand.size()-1;
-        while (printCommand[i]!='\''){
-            printCommand[i]='\0';
-            i--;
-        }
+        printCommand = _removeBackgroundSignForString(printCommand);
         m_aliasToPrint.push_back(printCommand);
     }
     else
@@ -434,10 +430,6 @@ bool Command::isBackgroundCommand() const
 
 bool Command::isExternalCommand() const{
     return false; // Default implementation indicates it's not an ExternalCommand
-}
-
-bool Command::isWatchCommand() const{
-    return false; // Default implementation indicates it's not an WatchCommand
 }
 
 /*---------------------------------------------------------------------------------------------------*/
@@ -739,9 +731,8 @@ void KillCommand::execute(){
     }
 
     // Send the specified signal to the job
-    if (kill(jobEntry->getProcessID(), signum) == 0)
-        cout << "signal number " << signum << " was sent to pid " << jobEntry->getProcessID() << endl;
-    else
+    cout << "signal number " << signum << " was sent to pid " << jobEntry->getProcessID() << endl;
+    if (kill(jobEntry->getProcessID(), signum) != 0)
         perror("smash error: kill failed");
 }
 
